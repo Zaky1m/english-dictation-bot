@@ -1,0 +1,8 @@
+/target
+/data
+.env
+.env.*
+!.env.example
+CLAUDE.local.md
+*.local.md
+*.log
