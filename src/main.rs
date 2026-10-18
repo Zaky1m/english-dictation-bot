@@ -1,5 +1,6 @@
 mod config;
 mod content;
+mod db;
 mod gemini;
 mod http;
 
@@ -60,6 +61,8 @@ async fn main() -> anyhow::Result<()> {
 
 async fn serve() -> anyhow::Result<()> {
     let config = Config::from_env().context("invalid configuration")?;
+    let pool = db::connect(&config.database_url).await?;
+    db::migrate(&pool).await?;
     let listener = tokio::net::TcpListener::bind(config.bind_addr)
         .await
         .with_context(|| format!("cannot bind {}", config.bind_addr))?;
@@ -67,7 +70,9 @@ async fn serve() -> anyhow::Result<()> {
     axum::serve(listener, http::router())
         .with_graceful_shutdown(shutdown_signal())
         .await
-        .context("server error")
+        .context("server error")?;
+    pool.close().await;
+    Ok(())
 }
 
 async fn shutdown_signal() {
