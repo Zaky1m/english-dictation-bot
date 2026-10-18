@@ -46,3 +46,22 @@ client's 0.7x button.
 Why: `gemini-3.8-flash-tts` rejects system instructions, and any style sentence
 placed in the prompt is spoken aloud (a short prefix doubled the audio length).
 The voice itself carries the character.
+
+## 6. Visual design choices
+
+Context: Phase 1 presented palettes, layouts, fonts and voices as a design
+canvas; the maintainer approved the result.
+Decision: palette Pewter (background #B2B7BD, card #CBCFD4, accent #2F9BDD,
+ink #11151A); Lexend for Latin text and Cairo for Arabic; voice Aoede; map as
+a winding path with letter tiles for typing; the slow button is a labelled
+"0.7x" pill next to the play button.
+Why: chosen by the maintainer after comparing them on real screens. Pewter and
+the ink color keep body text above 4.5:1 contrast on the gray background.
+
+## 7. No account code
+
+Context: the spec sketched a per-user account code for manual payment chats.
+Decision: manual payments use the Telegram user id, so `users` has no
+`account_code` column.
+Why: the id is already unique and known to the bot, and the code added a
+second identifier with no benefit.
