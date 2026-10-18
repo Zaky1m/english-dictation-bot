@@ -37,3 +37,12 @@ Decision: plain HTML, CSS and JS in `web/`, with no build step and no
 framework.
 Why: nothing to compile or update, a tiny payload, and contributors can read it
 directly.
+
+## 5. No style prompt for text to speech
+
+Context: the spec asks for a friendly teacher voice at a slightly slow pace.
+Decision: send only the sentence text to the TTS model. Slow playback is the
+client's 0.7x button.
+Why: `gemini-3.8-flash-tts` rejects system instructions, and any style sentence
+placed in the prompt is spoken aloud (a short prefix doubled the audio length).
+The voice itself carries the character.

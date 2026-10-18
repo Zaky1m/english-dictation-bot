@@ -31,6 +31,10 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn gemini_keys_from(vars: impl IntoIterator<Item = (String, String)>) -> Vec<String> {
+        gemini_keys(&vars.into_iter().collect())
+    }
+
     pub fn from_env() -> Result<Self, ConfigError> {
         Self::from_vars(std::env::vars())
     }
