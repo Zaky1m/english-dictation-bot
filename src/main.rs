@@ -1,4 +1,6 @@
 mod config;
+mod content;
+mod gemini;
 mod http;
 
 use anyhow::Context;
@@ -16,6 +18,22 @@ struct Cli {
 enum Command {
     /// Run the HTTP server
     Serve,
+    /// Content tooling
+    Content {
+        #[command(subcommand)]
+        command: ContentCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum ContentCommand {
+    /// Write one sample MP3 per candidate voice
+    Voices {
+        #[arg(long)]
+        text: String,
+        #[arg(long, default_value = "data/voice-samples")]
+        out: std::path::PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -30,6 +48,13 @@ async fn main() -> anyhow::Result<()> {
 
     match Cli::parse().command {
         Command::Serve => serve().await,
+        Command::Content {
+            command: ContentCommand::Voices { text, out },
+        } => {
+            let keys = gemini_keys_from_env();
+            let gemini = gemini::Gemini::new(keys)?;
+            content::voices::write_samples(&gemini, &text, &out).await
+        }
     }
 }
 
@@ -47,4 +72,9 @@ async fn serve() -> anyhow::Result<()> {
 
 async fn shutdown_signal() {
     let _ = tokio::signal::ctrl_c().await;
+}
+
+/// Voice sampling only needs the Gemini keys, so it skips the full Config.
+fn gemini_keys_from_env() -> Vec<String> {
+    Config::gemini_keys_from(std::env::vars())
 }
