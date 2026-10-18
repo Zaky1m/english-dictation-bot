@@ -7,3 +7,5 @@ All notable changes are documented here. The format follows
 
 ### Added
 - Project skeleton: configuration loading and a `/health` endpoint.
+- Gemini key pool, text-to-speech client and `eng content voices`.
+- Initial database schema with seeded settings.
