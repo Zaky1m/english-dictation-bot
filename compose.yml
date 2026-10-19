@@ -1,0 +1,34 @@
+# One-command local run: the app and its PostgreSQL database.
+# Needs a filled .env (see .env.example), including POSTGRES_PASSWORD.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: eng
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: eng
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eng -d eng"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://eng:${POSTGRES_PASSWORD}@db:5432/eng
+      BIND_ADDR: 0.0.0.0:4510
+    ports:
+      - "127.0.0.1:4510:4510"
+    volumes:
+      - audio:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db:
+  audio:
