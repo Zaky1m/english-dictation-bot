@@ -16,6 +16,6 @@ impl Gemini {
                 self.generate(TTS_FALLBACK_MODEL, &body).await?
             }
         };
-        pcm_to_mp3(extract_pcm(&response)?).await
+        pcm_to_mp3(super::pcm::clean(&extract_pcm(&response)?)).await
     }
 }

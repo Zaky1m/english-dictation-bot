@@ -1,6 +1,7 @@
 mod client;
 pub mod keys;
-mod mp3;
+pub mod mp3;
+pub mod pcm;
 mod text;
 mod tts;
 

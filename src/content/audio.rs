@@ -112,3 +112,39 @@ async fn process(pool: &PgPool, gemini: &Gemini, job: Job) -> anyhow::Result<()>
     };
     Ok(())
 }
+
+/// Removes the start pop and end burst from MP3 files made before the cleaner
+/// existed. Originals are copied to `audio-orig/` first; files that need no
+/// change are left untouched so repeated runs do not re-encode them.
+pub async fn repair(data_dir: &Path) -> anyhow::Result<()> {
+    use crate::gemini::{mp3, pcm};
+    let (mut changed, mut untouched) = (0usize, 0usize);
+    for sub in ["s", "w"] {
+        let dir = data_dir.join("audio").join(sub);
+        let backup = data_dir.join("audio-orig").join(sub);
+        tokio::fs::create_dir_all(&backup).await?;
+        let mut entries = tokio::fs::read_dir(&dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            if path.extension().is_none_or(|e| e != "mp3") {
+                continue;
+            }
+            let original = tokio::fs::read(&path).await?;
+            let raw = mp3::mp3_to_pcm(&original).await?;
+            let cleaned = pcm::clean(&raw);
+            if cleaned.len() == raw.len() {
+                untouched += 1;
+                continue;
+            }
+            let name = path.file_name().context("file name")?;
+            tokio::fs::write(backup.join(name), &original).await?;
+            let fixed = mp3::pcm_to_mp3(cleaned).await?;
+            let tmp = path.with_extension("part");
+            tokio::fs::write(&tmp, &fixed).await?;
+            tokio::fs::rename(&tmp, &path).await?;
+            changed += 1;
+        }
+    }
+    tracing::info!(changed, untouched, "repair finished");
+    Ok(())
+}

@@ -40,6 +40,9 @@ enum ContentCommand {
     Audio {
         #[arg(long)]
         missing: bool,
+        /// Clean start and end artifacts from existing files instead of generating
+        #[arg(long)]
+        repair: bool,
     },
     /// Write one sample MP3 per candidate voice
     Voices {
@@ -95,6 +98,10 @@ async fn content_command(command: ContentCommand) -> anyhow::Result<()> {
     if let ContentCommand::Voices { text, out } = &command {
         let gemini = gemini::Gemini::new(gemini_keys_from_env())?;
         return content::voices::write_samples(&gemini, text, out).await;
+    }
+    if let ContentCommand::Audio { repair: true, .. } = &command {
+        let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "data".into());
+        return content::audio::repair(std::path::Path::new(&data_dir)).await;
     }
     let config = Config::from_env().context("invalid configuration")?;
     let pool = db::connect(&config.database_url).await?;

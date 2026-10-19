@@ -65,3 +65,23 @@ Decision: manual payments use the Telegram user id, so `users` has no
 `account_code` column.
 Why: the id is already unique and known to the bot, and the code added a
 second identifier with no benefit.
+
+## 8. Clean TTS output before encoding
+
+Context: `gemini-3.8-flash-tts` puts a 30-60 ms pop about 20 ms in and a
+130-150 ms full-scale burst after the speech, each separated from the speech by
+170 ms or more of silence. They sound like a transmitter switching on and off.
+Decision: `gemini::pcm::clean` drops a short isolated loud run at the start
+(at most 80 ms, peak at least 15000) and at the end (at most 200 ms, peak at
+least 30000) when 120 ms of silence separates it from the speech, keeping about
+100 ms of lead and 200 ms of tail silence. `eng content audio --repair` applies
+the same cleaning to existing files and backs up originals in `data/audio-orig/`.
+Why: the artifacts come from the model, so the only fix is to remove them.
+Amplitude is not compared with the speech because loud voices peak above the pop.
+
+## 9. Gemini free tier limits TTS volume
+
+Context: the free tier allows 10 requests per day per key for each TTS model.
+Decision: generation resumes where it stopped (`eng content audio` only touches
+files that are missing), so it can run over several days or on a paid key.
+Why: 1200 sentences and about 1500 words need roughly 2700 calls.
