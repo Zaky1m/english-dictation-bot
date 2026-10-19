@@ -274,5 +274,33 @@ async fn learner_flow_end_to_end() {
         .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 
+    // Stats: two sentences solved, both with a mistake or a reveal, so accuracy is zero.
+    let (_, stats) = client.call("GET", "/api/stats", None).await;
+    assert_eq!(stats["sentences"], 2);
+    assert_eq!(stats["words_learned"], 5);
+    assert_eq!(stats["accuracy"], 0);
+
+    // Preferences and the profile payload the screens read.
+    let (status, _) = client
+        .call(
+            "PATCH",
+            "/api/me",
+            Some(json!({"lang": "en", "reminders_on": false})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = client
+        .call("PATCH", "/api/me", Some(json!({"lang": "fr"})))
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (_, me) = client.call("GET", "/api/me", None).await;
+    assert_eq!(
+        (me["lang"].as_str(), me["reminders_on"].as_bool()),
+        (Some("en"), Some(false))
+    );
+    assert_eq!(me["pricing"]["stars_month"], 150);
+    assert_eq!(me["review_due"], 0);
+    assert_eq!(me["pro"], false);
+
     db::drop_test_schema(&pool, &schema).await;
 }

@@ -10,7 +10,7 @@ const LETTERS = /[^a-z]/g;
 const keepFocus = (e) => e.preventDefault();
 
 /** Dictation screen for one lesson: hear, read the translation, type. */
-export async function showExercise(root, lessonId, ctx) {
+export async function showExercise(root, source, ctx) {
   const state = { stale: false };
   root.replaceChildren(h('div', { class: 'center-screen muted' }, t('loading')));
   ctx.onLeave(() => {
@@ -21,19 +21,23 @@ export async function showExercise(root, lessonId, ctx) {
   audio.preservesPitch = true;
   audio.webkitPreservesPitch = true;
 
+  const onEscape = (e) => { if (e.key === 'Escape') ctx.go('#/'); };
+  document.addEventListener('keydown', onEscape);
+  ctx.onLeave(() => document.removeEventListener('keydown', onEscape));
+
   async function loadNext() {
     let attempt;
     try {
-      attempt = await api('POST', `/api/lessons/${lessonId}/next`);
+      attempt = await source.next();
     } catch (e) {
       if (state.stale) return;
-      const key = e instanceof ApiError && e.code === 'limit_reached' ? 'limit_reached'
-        : e instanceof ApiError && e.code === 'locked' ? 'locked' : 'error_generic';
+      if (e instanceof ApiError && e.code === 'limit_reached') return ctx.go('#/limit');
+      const key = e instanceof ApiError && e.code === 'locked' ? 'locked' : 'error_generic';
       root.replaceChildren(h('div', { class: 'center-screen' }, t(key)));
       return;
     }
     if (state.stale) return;
-    if (attempt.done) return ctx.go(`#/result/${lessonId}`);
+    if (attempt.done || attempt.none) return source.complete(attempt);
     render(attempt);
   }
 
@@ -89,7 +93,20 @@ export async function showExercise(root, lessonId, ctx) {
         if (clean.length === length) focusWord(i + 1);
       });
       input.addEventListener('keydown', (e) => {
-        if (e.key === ' ') {
+        if (e.key === 'Tab') {
+          // Tab replays the sentence, Shift+Tab plays it slowly; the keyboard never leaves the boxes.
+          e.preventDefault();
+          playSentence(e.shiftKey ? 0.7 : 1);
+        } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          reveal();
+        } else if (e.key === 'ArrowLeft' && input.selectionStart === 0 && i > 0) {
+          e.preventDefault();
+          focusWord(i - 1);
+        } else if (e.key === 'ArrowRight' && input.selectionStart === input.value.length) {
+          e.preventDefault();
+          focusWord(i + 1);
+        } else if (e.key === ' ') {
           e.preventDefault();
           // On an empty word a space is ignored, so typing "word word" after an
           // auto-advance does not skip a word.
@@ -131,7 +148,8 @@ export async function showExercise(root, lessonId, ctx) {
     function fitTiles() {
       const longest = Math.max(...attempt.tokens.map((tok) => tok.pattern.length));
       const width = sentence.clientWidth || 320;
-      const tile = Math.max(16, Math.min(26, Math.floor((width - 8) / longest) - 3));
+      const biggest = window.innerWidth >= 900 && window.innerHeight >= 600 ? 40 : 26;
+      const tile = Math.max(16, Math.min(biggest, Math.floor((width - 8) / longest) - 3));
       sentence.style.setProperty('--tile', `${tile}px`);
     }
 
@@ -183,8 +201,7 @@ export async function showExercise(root, lessonId, ctx) {
         inputs[target].value = data.letters;
         revealed.add(target);
         paint();
-        clearTimeout(timer);
-        runCheck();
+        scheduleCheck();
       } catch (e) {
         toast(e instanceof ApiError && e.code === 'ad_required' ? t('reveal_needs_ad') : t('error_generic'));
       }
@@ -193,6 +210,7 @@ export async function showExercise(root, lessonId, ctx) {
     function solved(data) {
       finished = true;
       clearTimeout(timer);
+      ctx.recordSolved(source.key, data.score);
       inputs.forEach((i) => { i.disabled = true; });
       tg?.HapticFeedback?.notificationOccurred('success');
       if (data.next_audio_url) {
@@ -235,7 +253,16 @@ export async function showExercise(root, lessonId, ctx) {
         }, word);
         chips.append(chip);
       });
-      const next = h('button', { class: 'btn', onclick: () => (data.lesson_complete ? ctx.go(`#/result/${lessonId}`) : loadNext()) }, t('next'));
+      const goNext = () => (data.lesson_complete ? source.complete({ done: true }) : loadNext());
+      const next = h('button', { class: 'btn', onclick: goNext }, t('next'), h('span', { class: 'keys', style: 'margin-inline-start:6px' }, h('kbd', {}, 'Enter')));
+      const onKey = (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        document.removeEventListener('keydown', onKey);
+        goNext();
+      };
+      document.addEventListener('keydown', onKey);
+      ctx.onLeave(() => document.removeEventListener('keydown', onKey));
       body.replaceChildren(
         h('div', { class: 'card prompt' }, h('div', { class: 'text', style: 'font-size:20px' }, attempt.translation)),
         chips,
@@ -248,8 +275,8 @@ export async function showExercise(root, lessonId, ctx) {
         next);
     }
 
-    const total = attempt.total ?? 10;
-    const index = attempt.index ?? 1;
+    const total = attempt.total;
+    const index = attempt.index;
     const body = h('div', { class: 'body' },
       h('div', { class: 'card prompt' },
         h('div', { class: 'label muted' }, t('type_in_english')),
@@ -259,13 +286,17 @@ export async function showExercise(root, lessonId, ctx) {
         h('button', { class: 'pill', onpointerdown: keepFocus, onclick: () => playSentence(0.7) }, h('span', { html: icon('play') }), t('slower'), h('span', { class: 'latin' }, '0.7x'))),
       h('div', { class: 'muted', style: 'font-size:13px' }, t('words_count', { n: attempt.tokens.length })),
       sentence,
+      h('div', { class: 'keys', dir: 'ltr' },
+        h('span', {}, h('kbd', {}, 'Tab'), t('key_play')),
+        h('span', {}, h('kbd', {}, 'Shift+Tab'), t('key_slow')),
+        h('span', {}, h('kbd', {}, 'Ctrl+Enter'), t('key_reveal'))),
       h('button', { class: 'btn2 btn small', style: 'background:var(--card);color:var(--ink)', onpointerdown: keepFocus, onclick: reveal },
         ctx.me.ads_enabled && !ctx.me.pro ? t('reveal_needs_ad') : t('reveal_word')));
     root.replaceChildren(
       h('div', { class: 'top' },
         h('button', { class: 'iconbtn', 'aria-label': t('close'), onclick: () => ctx.go('#/'), html: icon('close') }),
-        h('div', { class: 'bar grow' }, h('i', { style: `width:${Math.round(((index - 1) / total) * 100)}%` })),
-        h('div', { class: 'chip latin' }, `${index} / ${total}`)),
+        h('div', { class: 'bar grow' }, index ? h('i', { style: `width:${Math.round(((index - 1) / total) * 100)}%` }) : null),
+        h('div', { class: 'chip latin' }, index ? `${index} / ${total}` : t(attempt.kind === 'review' ? 'review_title' : 'challenge_title'))),
       body);
     fitTiles();
     paint();

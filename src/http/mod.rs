@@ -33,7 +33,8 @@ pub fn router(state: AppState) -> Router {
     let audio = ServeDir::new(state.config.data_dir.join("audio"));
     let web_dir = state.config.web_dir.clone();
     let api = Router::new()
-        .route("/me", get(api_profile::me))
+        .route("/me", get(api_profile::me).patch(api_profile::update_me))
+        .route("/stats", get(api_profile::stats))
         .route("/map", get(api_profile::map))
         .route("/lessons/{id}/next", post(api_exercise::next_in_lesson))
         .route("/attempts/{id}/play", post(api_exercise::play))

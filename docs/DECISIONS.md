@@ -125,3 +125,21 @@ Why: 1200 sentences and about 1500 words need roughly 2700 calls.
   payment is recorded once per `telegram_payment_charge_id` in one transaction
   together with the subscription row.
 - **Menu button** text is `Eng`, because Telegram stores one text for all users.
+
+## 12. Mini App structure and desktop use
+
+- **No framework, no build**: ES modules under `web/` (`app.js` routes by URL
+  hash; one file per screen). Screens read only the JSON API.
+- **Exercise sources**: the same exercise screen serves lessons, reviews and the
+  daily challenge through a small `source` object (how to get the next attempt
+  and what to do when done), so there is one typing implementation.
+- **Desktop**: content stays in a centered column (760 px) on a full-window
+  background; Telegram Desktop and Web clients get `requestFullscreen`. Keyboard:
+  Tab replays the sentence, Shift+Tab plays it slowly, Ctrl+Enter reveals the
+  current word, Enter goes to the next sentence, Esc leaves, arrow keys move
+  between words. Hints show only when a fine pointer is present.
+- **Buttons never take focus from the letter boxes** (`pointerdown` is
+  prevented), otherwise the phone keyboard closes whenever play is tapped.
+- **Lesson result** is built from the running totals the client collects while
+  the lesson is played; a reload during the result screen simply omits them.
+- League, charts and badges screens come with their data in Phase 7.

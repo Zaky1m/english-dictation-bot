@@ -66,11 +66,15 @@ pub async fn finish(
         .bind(breakdown.flagged)
         .execute(&mut *conn)
         .await?;
-    sqlx::query("UPDATE users SET combo = $2 WHERE id = $1")
-        .bind(s.user_id)
-        .bind(combo as i32)
-        .execute(&mut *conn)
-        .await?;
+    sqlx::query(
+        "UPDATE users SET combo = $2, stat_solved = stat_solved + 1,
+                stat_clean = stat_clean + $3 WHERE id = $1",
+    )
+    .bind(s.user_id)
+    .bind(combo as i32)
+    .bind(i32::from(clean))
+    .execute(&mut *conn)
+    .await?;
 
     let mut lesson_complete = false;
     if s.kind == "challenge" {
