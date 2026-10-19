@@ -11,14 +11,14 @@ use std::sync::atomic::{AtomicU16, Ordering};
 use tower::ServiceExt;
 
 #[derive(Clone, Default)]
-struct Stub {
-    calls: Arc<Mutex<Vec<(String, Value)>>>,
+pub(super) struct Stub {
+    pub(super) calls: Arc<Mutex<Vec<(String, Value)>>>,
     /// When non-zero, every call answers with this Telegram error code.
-    fail_with: Arc<AtomicU16>,
+    pub(super) fail_with: Arc<AtomicU16>,
 }
 
 impl Stub {
-    fn methods(&self) -> Vec<String> {
+    pub(super) fn methods(&self) -> Vec<String> {
         self.calls
             .lock()
             .unwrap()
@@ -27,7 +27,7 @@ impl Stub {
             .collect()
     }
 
-    fn last(&self, method: &str) -> Value {
+    pub(super) fn last(&self, method: &str) -> Value {
         let calls = self.calls.lock().unwrap();
         calls
             .iter()
@@ -59,7 +59,7 @@ async fn stub_handler(
     axum::Json(json!({ "ok": true, "result": result }))
 }
 
-async fn start_stub() -> (Stub, String) {
+pub(super) async fn start_stub() -> (Stub, String) {
     let stub = Stub::default();
     let app = Router::new()
         .route("/{*rest}", post(stub_handler))

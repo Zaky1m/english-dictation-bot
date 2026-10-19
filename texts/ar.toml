@@ -20,3 +20,11 @@ plan_month = "شهر"
 plan_year = "سنة"
 pay_rejected = "الدفع مش صالح، حاول تاني من التطبيق"
 unknown = """⌯ اضغط /start عشان تبدأ"""
+reminder = """⌯ سلسلتك لسه شغالة
+• سلسلتك الحالية ↢ {streak} أيام
+• باقي النهارده ↢ {left} جمل
+• كمّل قبل ما اليوم يخلص"""
+challenge_post = """⌯ ملخص تحدي اليوم
+• المشاركين ↢ {participants}
+• أصعب كلمة ↢ <code>{word}</code>
+{top}"""

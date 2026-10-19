@@ -1,4 +1,5 @@
 mod api_exercise;
+mod api_league;
 mod api_pay;
 mod api_profile;
 mod api_review;
@@ -35,6 +36,9 @@ pub fn router(state: AppState) -> Router {
     let api = Router::new()
         .route("/me", get(api_profile::me).patch(api_profile::update_me))
         .route("/stats", get(api_profile::stats))
+        .route("/stats/pro", get(api_league::pro_stats))
+        .route("/league", get(api_league::current))
+        .route("/badges", get(api_league::badges))
         .route("/map", get(api_profile::map))
         .route("/lessons/{id}/next", post(api_exercise::next_in_lesson))
         .route("/attempts/{id}/play", post(api_exercise::play))
@@ -77,6 +81,9 @@ async fn health() -> &'static str {
 
 #[cfg(test)]
 mod bot_tests;
+
+#[cfg(test)]
+mod engagement_tests;
 
 #[cfg(test)]
 mod flow_tests;

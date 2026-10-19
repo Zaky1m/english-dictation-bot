@@ -46,6 +46,11 @@ async fn on_message(state: &AppState, message: Message) -> Result<(), HandlerErr
     if profile.blocked {
         return Ok(());
     }
+    // Writing to the bot proves the chat is open again.
+    sqlx::query("UPDATE users SET bot_blocked = false WHERE id = $1 AND bot_blocked")
+        .bind(sender.id)
+        .execute(&state.pool)
+        .await?;
     if let Some(payment) = &message.successful_payment {
         return on_payment(state, sender.id, message.chat.id, &profile.lang, payment).await;
     }

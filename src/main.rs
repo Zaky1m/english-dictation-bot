@@ -1,13 +1,18 @@
 mod auth;
+mod badges;
 mod cairo;
+mod challenge;
 mod config;
 mod content;
 mod db;
 mod exercise;
 mod gemini;
 mod http;
+mod jobs;
+mod league;
 mod review;
 mod settings;
+mod streak;
 mod telegram;
 mod users;
 
@@ -110,10 +115,13 @@ async fn serve() -> anyhow::Result<()> {
         bot,
         texts: std::sync::Arc::new(telegram::Texts::load()?),
     };
-    axum::serve(listener, http::router(state))
+    let jobs = jobs::spawn(state.clone());
+    let served = axum::serve(listener, http::router(state))
         .with_graceful_shutdown(shutdown_signal())
-        .await
-        .context("server error")?;
+        .await;
+    // Jobs are idempotent, so stopping them mid-run is safe.
+    jobs.abort();
+    served.context("server error")?;
     pool.close().await;
     Ok(())
 }
