@@ -13,3 +13,4 @@ All notable changes are documented here. The format follows
 - Telegram bot: webhook with deduplication, start and language switch, Stars invoices and payments.
 - Mini App: map, exercise (lesson, review, daily challenge), lesson result, daily limit, profile, saved words, Pro and settings screens.
 - Streaks with Pro freezes, weekly leagues, badges, Pro statistics, daily challenge pick, purge, and scheduled reminder and channel jobs (off until approved).
+- Adsgram rewarded ads (credits, extra sentences, ad-gated reveal) and the admin panel (users, Pro grants, payments, settings editor, content tools).

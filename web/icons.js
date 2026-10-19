@@ -39,6 +39,9 @@ const PATHS = {
   camera: '<path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
 };
 
+/** Icons a situation can use (the ones after the UI icons in PATHS). */
+export const SITUATION_ICONS = ['chat', 'coffee', 'fork', 'bag', 'plane', 'bed', 'compass', 'car', 'heart', 'pill', 'phone', 'briefcase', 'book', 'home', 'users', 'cloud', 'bank', 'alert', 'laptop', 'camera'];
+
 export function icon(name, extra = '') {
   return `<svg class="ic ${extra}" viewBox="0 0 24 24" aria-hidden="true">${PATHS[name] ?? PATHS.chat}</svg>`;
 }

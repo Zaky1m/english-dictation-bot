@@ -7,7 +7,7 @@ use axum::http::{HeaderMap, StatusCode};
 use serde_json::Value;
 
 /// Constant-time comparison so response timing never leaks the secret.
-fn secrets_match(a: &str, b: &str) -> bool {
+pub(super) fn secrets_match(a: &str, b: &str) -> bool {
     a.len() == b.len()
         && a.bytes()
             .zip(b.bytes())

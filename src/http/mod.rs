@@ -1,3 +1,6 @@
+mod ads;
+mod api_admin;
+mod api_ads;
 mod api_exercise;
 mod api_league;
 mod api_pay;
@@ -28,6 +31,8 @@ pub struct AppState {
     pub settings: Arc<Settings>,
     pub bot: Arc<Bot>,
     pub texts: Arc<Texts>,
+    /// Present only when Gemini keys are configured; the admin content tools need it.
+    pub gemini: Option<Arc<crate::gemini::Gemini>>,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -49,7 +54,48 @@ pub fn router(state: AppState) -> Router {
         .route("/challenge/next", post(api_review::next_challenge))
         .route("/words", get(api_words::list))
         .route("/words/{word}/save", post(api_words::save))
-        .route("/pay/stars/{plan}", post(api_pay::stars_invoice));
+        .route("/pay/stars/{plan}", post(api_pay::stars_invoice))
+        .route("/admin/overview", get(api_admin::overview))
+        .route("/admin/users", get(api_admin::users))
+        .route("/admin/users/{id}/grant", post(api_admin::grant))
+        .route("/admin/users/{id}/revoke", post(api_admin::revoke))
+        .route("/admin/payments", get(api_admin::payments))
+        .route("/admin/settings", get(api_admin::settings))
+        .route(
+            "/admin/settings/{key}",
+            axum::routing::put(api_admin::save_setting),
+        )
+        .route(
+            "/admin/situations",
+            get(api_admin::situations).post(api_admin::create_situation),
+        )
+        .route(
+            "/admin/situations/{id}/sentences",
+            get(api_admin::situation_sentences),
+        )
+        .route(
+            "/admin/situations/{id}/generate",
+            post(api_admin::generate_situation),
+        )
+        .route(
+            "/admin/situations/{id}/publish",
+            post(api_admin::publish_situation),
+        )
+        .route(
+            "/admin/situations/{id}/regenerate-audio",
+            post(api_admin::regenerate_situation_audio),
+        )
+        .route(
+            "/admin/sentences/{id}/active",
+            post(api_admin::set_sentence_active),
+        )
+        .route(
+            "/admin/sentences/{id}/regenerate-audio",
+            post(api_admin::regenerate_sentence_audio),
+        )
+        .route("/admin/jobs", get(api_admin::jobs))
+        .route("/ads/claim", post(api_ads::claim))
+        .route("/adsgram/reward/{secret}", get(api_ads::reward));
     Router::new()
         .route("/health", get(health))
         .route("/tg/{path}", post(webhook::receive))
@@ -81,6 +127,12 @@ async fn health() -> &'static str {
 
 #[cfg(test)]
 mod bot_tests;
+
+#[cfg(test)]
+mod admin_tests;
+
+#[cfg(test)]
+mod ads_tests;
 
 #[cfg(test)]
 mod engagement_tests;
@@ -121,6 +173,7 @@ mod tests {
             settings: Arc::new(Settings::empty()),
             bot: Arc::new(Bot::new("1:x", "http://127.0.0.1:1").unwrap()),
             texts: Arc::new(Texts::load().unwrap()),
+            gemini: None,
         };
         let res = router(state)
             .oneshot(Request::get("/health").body(Body::empty()).unwrap())
@@ -141,6 +194,7 @@ mod tests {
             settings: Arc::new(Settings::empty()),
             bot: Arc::new(Bot::new("1:x", "http://127.0.0.1:1").unwrap()),
             texts: Arc::new(Texts::load().unwrap()),
+            gemini: None,
         };
         let res = router(state)
             .oneshot(Request::get("/api/me").body(Body::empty()).unwrap())

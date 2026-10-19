@@ -165,3 +165,27 @@ Why: 1200 sentences and about 1500 words need roughly 2700 calls.
   letter or faster without the anti-cheat flag.
 - **Most missed** letters and words come from lifetime counters updated in the
   solve transaction, because attempts are purged after a day.
+
+## 14. Ads and the admin panel
+
+- **Ads need both switches**: the `ads_enabled` setting and `ADSGRAM_BLOCK_ID`.
+  Until both are set, no ad is shown, the reward callback does nothing, and word
+  reveals stay free for everyone.
+- **Reward flow**: Adsgram calls `GET /api/adsgram/reward/{secret}?userid=...`,
+  which adds one credit (at most three unclaimed at a time and one per 20
+  seconds per user). The client retries its request for a few seconds because
+  the callback arrives slightly after the ad ends.
+- **Claiming**: `POST /api/ads/claim` accepts only `extra` (ten more sentences,
+  once a day by setting). A word reveal has no separate claim: the reveal request
+  itself spends the credit, atomically, so one credit can never pay twice.
+- **Admin access** needs a valid `initData` and a user id in `ADMIN_IDS`; the
+  page is served at `/admin` and every `/api/admin` route checks the same rule.
+- **Settings editor** checks the JSON type of the new value against the old one
+  and reloads the cache immediately.
+- **New situations** are created hidden (`active = false`) with six empty
+  lessons; a background task writes the sentences and audio, one task at a time
+  (they share the Gemini quota), and the admin reviews the sentences before
+  publishing. Task progress is stored in `content_jobs`; a restart marks
+  interrupted tasks as failed, and re-running resumes only what is missing.
+- **Revoking Pro** ends every subscription now, including future-dated
+  extensions. A recurring Stars subscription must also be cancelled in Telegram.

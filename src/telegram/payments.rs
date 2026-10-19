@@ -49,8 +49,17 @@ pub fn extend(
     current_end: Option<DateTime<Utc>>,
     plan: Plan,
 ) -> (DateTime<Utc>, DateTime<Utc>) {
+    extend_days(now, current_end, plan.days())
+}
+
+/// Same rule for any length, used by manual grants from the admin panel.
+pub fn extend_days(
+    now: DateTime<Utc>,
+    current_end: Option<DateTime<Utc>>,
+    days: i64,
+) -> (DateTime<Utc>, DateTime<Utc>) {
     let starts = current_end.filter(|end| *end > now).unwrap_or(now);
-    (starts, starts + Duration::days(plan.days()))
+    (starts, starts + Duration::days(days))
 }
 
 pub struct Payment<'a> {

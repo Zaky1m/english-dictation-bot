@@ -1,5 +1,6 @@
 import { api } from './api.js';
-import { h } from './dom.js';
+import { h, toast } from './dom.js';
+import { claimExtra, showAd } from './ads.js';
 import { icon } from './icons.js';
 import { nav } from './nav.js';
 import { t } from './i18n.js';
@@ -7,11 +8,25 @@ import { t } from './i18n.js';
 export async function showLimit(root, ctx) {
   const me = await api('GET', '/api/me');
   ctx.me = me;
+  async function watch(event) {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      if (!(await showAd(me.adsgram_block_id))) return toast(t('ad_failed'));
+      await claimExtra();
+      toast(t('ad_unlocked'));
+      ctx.go('#/');
+    } catch {
+      toast(t('error_generic'));
+    } finally {
+      button.disabled = false;
+    }
+  }
   const extra = me.usage.ad_unlocks_left > 0
     ? h('div', { class: 'card stack' },
       h('div', { class: 'row' }, h('span', { html: icon('video', 'big') }),
         h('div', { class: 'grow' }, h('b', {}, t('ad_extra_title')), h('div', { class: 'muted small' }, t('ad_extra_text')))),
-      h('button', { class: 'btn', onclick: () => ctx.watchAd?.() }, t('watch_ad')))
+      h('button', { class: 'btn', onclick: watch }, t('watch_ad')))
     : null;
   root.replaceChildren(
     h('div', { class: 'top' }, h('h1', { class: 'title grow' }, t('nav_map'))),

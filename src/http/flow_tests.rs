@@ -144,6 +144,7 @@ async fn learner_flow_end_to_end() {
         settings: settings.clone(),
         bot: Arc::new(Bot::new("1:x", "http://127.0.0.1:1").unwrap()),
         texts: Arc::new(Texts::load().unwrap()),
+        gemini: None,
     };
     let client = Client {
         app: router(state),

@@ -423,20 +423,15 @@ pub async fn reveal(
     let index = body.word_index as i32;
     if !attempt.reveals.contains(&index) {
         // Revealing is free for Pro, and for everyone while ads are off.
-        if !pro && state.settings.bool("ads_enabled") {
-            let credit: Option<i64> = sqlx::query_scalar(
-                "UPDATE ad_credits SET claimed_at = now(), claimed_for = 'reveal'
-                 WHERE id = (SELECT id FROM ad_credits
-                             WHERE user_id = $1 AND claimed_at IS NULL
-                               AND created_at > now() - make_interval(mins => $2)
-                             ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED)
-                 RETURNING id",
+        if !pro && super::api_profile::ads_on(&state) {
+            let spent = super::ads::consume_credit(
+                &mut tx,
+                user.id,
+                state.settings.int("ad_credit_ttl_minutes"),
+                "reveal",
             )
-            .bind(user.id)
-            .bind(state.settings.int("ad_credit_ttl_minutes") as i32)
-            .fetch_optional(&mut *tx)
             .await?;
-            if credit.is_none() {
+            if !spent {
                 return Err(ApiError::Forbidden("ad_required"));
             }
         }
