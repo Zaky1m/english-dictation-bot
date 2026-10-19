@@ -24,9 +24,9 @@ COPY --from=build /src/target/release/eng /usr/local/bin/eng
 COPY web ./web
 RUN mkdir -p data && chown -R eng:eng /app
 USER eng
-ENV BIND_ADDR=0.0.0.0:4510 \
+# PORT is overridden by hosting platforms that assign their own.
+ENV PORT=4510 \
     DATA_DIR=/app/data \
     WEB_DIR=/app/web
-VOLUME /app/data
 EXPOSE 4510
 CMD ["eng", "serve"]
