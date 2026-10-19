@@ -12,3 +12,4 @@ All notable changes are documented here. The format follows
 - Mini App authentication, scoring, answer checking and the learner API.
 - Telegram bot: webhook with deduplication, start and language switch, Stars invoices and payments.
 - Mini App: map, exercise (lesson, review, daily challenge), lesson result, daily limit, profile, saved words, Pro and settings screens.
+- Streaks with Pro freezes, weekly leagues, badges, Pro statistics, daily challenge pick, purge, and scheduled reminder and channel jobs (off until approved).

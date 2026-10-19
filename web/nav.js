@@ -2,12 +2,12 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 import { t } from './i18n.js';
 
-/** Bottom tab bar. `active` is 'map' or 'profile'. */
+/** Bottom tab bar. `active` is 'map', 'league' or 'profile'. */
 export function nav(active, ctx) {
   const tab = (name, hash, ico) =>
     h('button', { class: `tab${active === name ? ' on' : ''}`, onclick: () => ctx.go(hash) },
       h('i', { html: icon(ico) }), t(`nav_${name}`));
-  return h('nav', { class: 'nav' }, tab('map', '#/', 'pin'), tab('profile', '#/profile', 'user'));
+  return h('nav', { class: 'nav' }, tab('map', '#/', 'pin'), tab('league', '#/league', 'trophy'), tab('profile', '#/profile', 'user'));
 }
 
 /** Standard header with an optional back arrow and a title. */

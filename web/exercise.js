@@ -210,7 +210,10 @@ export async function showExercise(root, source, ctx) {
     function solved(data) {
       finished = true;
       clearTimeout(timer);
-      ctx.recordSolved(source.key, data.score);
+      ctx.recordSolved(source.key, data);
+      if (source.key === 'review' || source.key === 'challenge') {
+        data.new_badges.forEach((id) => toast(`${t('badge_new')}: ${t(`badge_${id}`)}`));
+      }
       inputs.forEach((i) => { i.disabled = true; });
       tg?.HapticFeedback?.notificationOccurred('success');
       if (data.next_audio_url) {
