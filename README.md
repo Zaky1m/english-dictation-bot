@@ -1,61 +1,39 @@
-# eng
+# English Dictation Bot
 
 [العربية](README.ar.md)
 
-A Telegram Mini App for learning English by dictation. The learner hears a
-sentence, sees its Arabic translation, and types the English. A Rust backend
-(axum and PostgreSQL) serves the bot webhook, the JSON API and the static Mini
-App. Answers are checked on the server, so the client never holds the solution
-before the sentence is solved or a word is revealed.
+Learn English by typing what you hear. A Telegram Mini App for Arabic speakers, built with Rust and PostgreSQL.
 
-![The exercise screen on a phone, with one wrong letter underlined](docs/screenshots/exercise-mobile.png)
+![The exercise screen on a phone, with one wrong letter underlined](docs/screenshots/exercise-mobile-en.png)
 
-![The lesson map on a desktop window](docs/screenshots/map-desktop.png)
+![The lesson map on a desktop window](docs/screenshots/map-desktop-en.png)
 
-## Features
+Each exercise plays one English sentence and shows its Arabic translation. The learner types the sentence, one box per word. The server checks the answer and returns the positions of the wrong letters. It sends the correct sentence only after the learner solves it or reveals a word, so the client never holds the answer early.
 
-- 20 situations, 6 lessons each, 10 sentences per lesson (1200 sentences),
-  written once with Gemini and checked by automated validation.
-- Audio for every sentence and every word, generated once, stored as MP3 and
-  served as static files.
-- One input box per word. The server returns the wrong letter positions; the
-  correct answer is sent only after the sentence is solved or a word is revealed.
-- Server-side scoring with accuracy, a speed bonus, a combo and basic anti-cheat.
-- Daily goal and streak, with monthly streak freezes for Pro users.
-- Spaced review of sentences with mistakes (after 1, 3 and 7 days).
-- Weekly leagues in seven tiers with promotion and demotion.
-- A daily challenge with its own leaderboard.
-- Badges, saved words, and statistics (charts and most-missed letters for Pro).
-- Pro subscriptions paid with Telegram Stars, or granted manually by an admin.
+## What is in it
+
+- 20 everyday situations, 6 lessons each, 10 sentences per lesson. That is 1,200 sentences, generated once with Gemini and filtered by automated validation.
+- Audio for every sentence and every word, stored as MP3 and served as static files.
+- Scoring on the server: accuracy, a speed bonus, a combo and basic anti-cheat.
+- A daily goal and streak. Pro users get two streak freezes a month.
+- Spaced review of sentences the learner got wrong, after 1, 3 and 7 days.
+- Weekly leagues in seven tiers, with promotion and demotion, and a daily challenge with its own leaderboard.
+- Badges, saved words and statistics. Pro adds charts and the most-missed letters.
+- Pro subscriptions paid with Telegram Stars, or granted by an admin.
 - Optional rewarded ads through Adsgram.
 - An admin panel for users, Pro grants, payments, settings and content.
-- Arabic and English interface, right-to-left and left-to-right. Desktop windows
-  get the full window and keyboard shortcuts.
+- Arabic and English interface, right-to-left and left-to-right. On a desktop the Mini App fills the window and supports keyboard shortcuts.
 
-## Requirements
+## Quick start
 
-- Rust (stable, edition 2024) and a PostgreSQL 16 database.
-- `ffmpeg`, only to generate audio.
-- A Telegram bot token from BotFather.
-- Gemini API keys, only to generate content and audio.
-- A public HTTPS URL for the webhook and the Mini App.
-
-## Run it locally
+You need Rust (stable, edition 2024), PostgreSQL 16 and a Telegram bot token from BotFather. Telegram only talks to public HTTPS addresses, so for local testing put the app behind a tunnel or a reverse proxy.
 
 ```bash
 cp .env.example .env          # fill in the values
 cargo run --release -- serve
 ```
 
-`serve` applies the database migrations, registers the webhook and starts the
-HTTP server. Always build with `--release`.
-
-Content is generated with the same binary:
-
-```bash
-cargo run --release -- content generate --all   # sentences for every situation
-cargo run --release -- content audio            # missing sentence and word audio
-```
+`serve` applies the database migrations, registers the webhook and starts the HTTP server. Always build with `--release`.
 
 With Docker, `compose.yml` starts the app and PostgreSQL together:
 
@@ -64,9 +42,18 @@ cp .env.example .env
 docker compose up --build
 ```
 
+The repository ships the code but not the content. To fill the database, run the generator with your own Gemini keys. Audio generation also needs `ffmpeg`.
+
+```bash
+cargo run --release -- content generate --all   # sentences for every situation
+cargo run --release -- content audio            # missing sentence and word audio
+```
+
+The free Gemini tier limits speech requests per key per day, so generating all audio can take several days unless you add more keys or enable billing.
+
 ## Configuration
 
-Everything comes from environment variables (see `.env.example`):
+Everything comes from environment variables. `.env.example` lists them all.
 
 | Variable | Purpose |
 |---|---|
@@ -75,19 +62,17 @@ Everything comes from environment variables (see `.env.example`):
 | `BIND_ADDR` | Address the server listens on |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `WEBHOOK_PATH`, `WEBHOOK_SECRET` | Webhook path segment and secret header |
-| `ADSGRAM_REWARD_SECRET`, `ADSGRAM_BLOCK_ID` | Rewarded ads; off while the block id is empty |
-| `ADMIN_IDS`, `ADMIN_USERNAME` | Admin user ids; contact for manual payments |
-| `CHALLENGE_CHANNEL_ID` | Channel for the daily challenge summary |
+| `ADSGRAM_REWARD_SECRET`, `ADSGRAM_BLOCK_ID` | Rewarded ads, off while the block id is empty |
+| `ADMIN_IDS`, `ADMIN_USERNAME` | Admin user ids, and the contact shown for manual payments |
+| `CHALLENGE_CHANNEL_ID` | Channel that receives the daily challenge summary |
 | `DATA_DIR`, `WEB_DIR` | Audio files and static Mini App directories |
 | `GEMINI_API_KEY_<n>` | Gemini keys, used round-robin |
 
-Numbers such as daily limits, prices and scoring coefficients live in the
-`settings` table and are editable from the admin panel without a restart.
+Daily limits, prices and scoring coefficients live in the `settings` table. The admin panel edits them and the change applies without a restart.
 
-## Architecture
+## How it is built
 
-One binary, `eng`, with these subcommands: `serve`, `content generate`,
-`content audio`, `content voices` and `webhook set`.
+One binary, `eng`, with the subcommands `serve`, `content generate`, `content audio`, `content voices` and `webhook set`.
 
 ```
 src/
@@ -98,14 +83,11 @@ src/
   gemini/      key pool, text and speech clients, audio cleaning
   jobs.rs      scheduled work: leagues, daily challenge, purge, reminders
 migrations/    sqlx migrations
-web/           the Mini App (vanilla HTML, CSS and JS, no build step)
+web/           the Mini App: plain HTML, CSS and JS, no build step
 texts/         bot messages in Arabic and English
 ```
 
-All durable state is in PostgreSQL. Temporary state (open attempts, update ids
-for webhook de-duplication, unclaimed ad credits) is purged after at most a day.
-The reasoning behind the main choices is in [docs/DECISIONS.md](docs/DECISIONS.md)
-and the product behaviour is in [docs/SPEC.md](docs/SPEC.md).
+All durable state is in PostgreSQL. Temporary state (open attempts, webhook update ids, unclaimed ad credits) is purged after at most a day. [docs/SPEC.md](docs/SPEC.md) describes the product behavior and [docs/DECISIONS.md](docs/DECISIONS.md) records why the main choices were made.
 
 ## Tests
 
@@ -115,8 +97,11 @@ cargo clippy --all-targets --release -- -D warnings
 cargo test --release
 ```
 
-Tests that need a database run when `TEST_DATABASE_URL` points at a disposable
-PostgreSQL database; each test uses its own temporary schema and removes it.
+Tests that need a database run when `TEST_DATABASE_URL` points at a disposable PostgreSQL database. Each test creates its own temporary schema and drops it afterwards.
+
+## Contributing
+
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has the checks to run first. Report security problems as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
