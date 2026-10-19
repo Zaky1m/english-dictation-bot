@@ -162,6 +162,37 @@ async fn upsert_structure(pool: &PgPool, all: &[Situation]) -> anyhow::Result<Ve
     Ok(result)
 }
 
+/// Fills every lesson of a situation that already exists in the database (used by the
+/// admin panel for new situations). Lessons that already have ten sentences are skipped.
+pub async fn fill_situation(
+    pool: &PgPool,
+    gemini: &Gemini,
+    situation_id: i32,
+) -> anyhow::Result<()> {
+    let (slug, name_ar, name_en, icon): (String, String, String, String) =
+        sqlx::query_as("SELECT slug, name_ar, name_en, icon FROM situations WHERE id = $1")
+            .bind(situation_id)
+            .fetch_one(pool)
+            .await?;
+    let situation = Situation {
+        slug,
+        name_ar,
+        name_en,
+        icon,
+    };
+    let lessons: Vec<(i32, i16)> =
+        sqlx::query_as("SELECT id, number FROM lessons WHERE situation_id = $1 ORDER BY number")
+            .bind(situation_id)
+            .fetch_all(pool)
+            .await?;
+    for (lesson_id, number) in lessons {
+        fill_lesson(pool, gemini, &situation, lesson_id, number)
+            .await
+            .with_context(|| format!("{} lesson {number}", situation.slug))?;
+    }
+    Ok(())
+}
+
 async fn fill_lesson(
     pool: &PgPool,
     gemini: &Gemini,

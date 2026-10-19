@@ -18,6 +18,18 @@ fn cairo(y: i32, m: u32, d: u32, h: u32, min: u32) -> chrono::DateTime<chrono::U
 }
 
 async fn state_with(pool: &PgPool, origin: &str, channel: Option<&str>) -> AppState {
+    let extra: Vec<(&str, &str)> = channel
+        .map(|c| ("CHALLENGE_CHANNEL_ID", c))
+        .into_iter()
+        .collect();
+    state_with_vars(pool, origin, &extra).await
+}
+
+pub(super) async fn state_with_vars(
+    pool: &PgPool,
+    origin: &str,
+    extra: &[(&str, &str)],
+) -> AppState {
     let mut vars: Vec<(String, String)> = vec![
         ("BOT_TOKEN", "123456:TEST-TOKEN"),
         ("PUBLIC_URL", "https://example.com"),
@@ -30,19 +42,18 @@ async fn state_with(pool: &PgPool, origin: &str, channel: Option<&str>) -> AppSt
     .into_iter()
     .map(|(k, v)| (k.to_owned(), v.to_owned()))
     .collect();
-    if let Some(channel) = channel {
-        vars.push(("CHALLENGE_CHANNEL_ID".into(), channel.into()));
-    }
+    vars.extend(extra.iter().map(|(k, v)| (k.to_string(), v.to_string())));
     AppState {
         pool: pool.clone(),
         config: Arc::new(Config::from_vars(vars).unwrap()),
         settings: Arc::new(Settings::load(pool).await.unwrap()),
         bot: Arc::new(Bot::new("123456:TEST-TOKEN", origin).unwrap()),
         texts: Arc::new(Texts::load().unwrap()),
+        gemini: None,
     }
 }
 
-async fn set(pool: &PgPool, state: &AppState, key: &str, value: Value) {
+pub(super) async fn set(pool: &PgPool, state: &AppState, key: &str, value: Value) {
     sqlx::query("UPDATE settings SET value = $2 WHERE key = $1")
         .bind(key)
         .bind(value)

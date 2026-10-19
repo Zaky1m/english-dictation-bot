@@ -20,6 +20,7 @@ pub struct Me {
     admin_username: Option<String>,
     pricing: Pricing,
     ads_enabled: bool,
+    adsgram_block_id: Option<String>,
     usage: Usage,
     streak: Streak,
 }
@@ -126,6 +127,9 @@ pub async fn me(State(state): State<AppState>, user: User) -> ApiResult<Me> {
         },
         pro,
         ads_enabled: ads_on(&state),
+        adsgram_block_id: ads_on(&state)
+            .then(|| state.config.adsgram_block_id.clone())
+            .flatten(),
         usage: Usage {
             started: i64::from(started),
             limit: daily_base_limit(&state, pro) + bonus,

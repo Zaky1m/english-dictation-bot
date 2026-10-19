@@ -117,6 +117,7 @@ async fn bot_and_payment_flow() {
         settings,
         bot: Arc::new(Bot::new("123456:TEST-TOKEN", &origin).unwrap()),
         texts: Arc::new(Texts::load().unwrap()),
+        gemini: None,
     };
     let mut h = Harness {
         app: router(state),
@@ -281,6 +282,7 @@ async fn bot_and_payment_flow() {
         settings: Arc::new(Settings::load(&pool).await.unwrap()),
         bot: Arc::new(Bot::new("123456:TEST-TOKEN", &origin).unwrap()),
         texts: Arc::new(Texts::load().unwrap()),
+        gemini: None,
     };
     h.app = router(state);
     let u = h.update(message(5, "/start"));

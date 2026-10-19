@@ -106,6 +106,13 @@ async fn serve() -> anyhow::Result<()> {
         .await
         .with_context(|| format!("cannot bind {}", config.bind_addr))?;
     tracing::info!(addr = %config.bind_addr, gemini_keys = config.gemini_keys.len(), "listening");
+    let gemini = if config.gemini_keys.is_empty() {
+        None
+    } else {
+        Some(std::sync::Arc::new(gemini::Gemini::new(
+            config.gemini_keys.clone(),
+        )?))
+    };
     let bot = std::sync::Arc::new(telegram::Bot::new(&config.bot_token, TELEGRAM_API)?);
     register_webhook(&bot, &config).await;
     let state = http::AppState {
@@ -114,7 +121,9 @@ async fn serve() -> anyhow::Result<()> {
         config: std::sync::Arc::new(config),
         bot,
         texts: std::sync::Arc::new(telegram::Texts::load()?),
+        gemini,
     };
+    content::runner::mark_interrupted(&state.pool).await?;
     let jobs = jobs::spawn(state.clone());
     let served = axum::serve(listener, http::router(state))
         .with_graceful_shutdown(shutdown_signal())

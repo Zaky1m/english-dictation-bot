@@ -1,6 +1,7 @@
 import { api, ApiError } from './api.js';
 import { h, toast } from './dom.js';
 import { icon } from './icons.js';
+import { showAd, withCredit } from './ads.js';
 import { t } from './i18n.js';
 
 const tg = window.Telegram?.WebApp;
@@ -195,15 +196,24 @@ export async function showExercise(root, source, ctx) {
       // The current word, or the next one not yet revealed if it already was.
       const target = revealed.has(active) ? words.findIndex((_, i) => !revealed.has(i)) : active;
       if (target < 0) return;
+      const request = () => api('POST', `/api/attempts/${attempt.attempt_id}/reveal`, { word_index: target });
       try {
-        const data = await api('POST', `/api/attempts/${attempt.attempt_id}/reveal`, { word_index: target });
+        let data;
+        try {
+          data = await request();
+        } catch (e) {
+          // Free users watch an ad, then the reveal is retried until the reward lands.
+          if (!(e instanceof ApiError) || e.code !== 'ad_required') throw e;
+          if (!(await showAd(ctx.me.adsgram_block_id))) return toast(t('ad_failed'));
+          data = await withCredit(request);
+        }
         words[target] = data.letters;
         inputs[target].value = data.letters;
         revealed.add(target);
         paint();
         scheduleCheck();
-      } catch (e) {
-        toast(e instanceof ApiError && e.code === 'ad_required' ? t('reveal_needs_ad') : t('error_generic'));
+      } catch {
+        toast(t('error_generic'));
       }
     }
 
