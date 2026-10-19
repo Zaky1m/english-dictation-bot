@@ -20,3 +20,11 @@ plan_month = "Month"
 plan_year = "Year"
 pay_rejected = "The payment is not valid, please try again from the app"
 unknown = """⌯ Send /start to begin"""
+reminder = """⌯ Your streak is still alive
+• Current streak ↣ {streak} days
+• Left for today ↣ {left} sentences
+• Finish before the day ends"""
+challenge_post = """⌯ Daily challenge summary
+• Participants ↣ {participants}
+• Hardest word ↣ <code>{word}</code>
+{top}"""

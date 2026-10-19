@@ -21,6 +21,18 @@ impl Texts {
     /// Renders `key` for `lang`, then fills `{placeholders}` with HTML-escaped
     /// values. English goes through small caps before the values go in.
     pub fn render(&self, lang: &str, key: &str, values: &[(&str, &str)]) -> String {
+        self.render_with(lang, key, values, &[])
+    }
+
+    /// Like `render`, plus `raw` values that are inserted as they are because the
+    /// caller already made them safe HTML (for example a list of escaped names).
+    pub fn render_with(
+        &self,
+        lang: &str,
+        key: &str,
+        values: &[(&str, &str)],
+        raw: &[(&str, &str)],
+    ) -> String {
         let english = lang == "en";
         let table = if english { &self.en } else { &self.ar };
         let Some(template) = table.get(key) else {
@@ -34,6 +46,9 @@ impl Texts {
         };
         for (name, value) in values {
             text = text.replace(&format!("{{{name}}}"), &escape_html(value));
+        }
+        for (name, value) in raw {
+            text = text.replace(&format!("{{{name}}}"), value);
         }
         text
     }

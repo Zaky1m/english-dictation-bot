@@ -354,6 +354,8 @@ pub async fn check(
             distinct_mistakes: seen.len(),
             reveals: attempt.reveals.len(),
             elapsed_ms: attempt.elapsed_ms,
+            tokens: &tokens.0,
+            mistakes: &seen,
         },
     )
     .await?;
@@ -387,6 +389,8 @@ pub async fn check(
         "sentence": { "text": text, "translation": translation },
         "score": outcome.score,
         "lesson_complete": outcome.lesson_complete,
+        "streak": outcome.streak,
+        "new_badges": outcome.new_badges,
         "next_audio_url": next_audio_url,
         "meanings": meanings,
     })))

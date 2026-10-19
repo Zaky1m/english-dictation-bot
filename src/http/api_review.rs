@@ -30,40 +30,12 @@ pub async fn next_review(State(state): State<AppState>, user: User) -> ApiResult
 
 /// Today's challenge sentences, picked on first request if the daily job has not run.
 async fn challenge_sentences(state: &AppState, date: NaiveDate) -> Result<Vec<i32>, ApiError> {
-    let existing: Option<Vec<i32>> =
-        sqlx::query_scalar("SELECT sentence_ids FROM daily_challenges WHERE cairo_date = $1")
-            .bind(date)
-            .fetch_optional(&state.pool)
-            .await?;
-    if let Some(ids) = existing {
-        return Ok(ids);
+    let ids = crate::challenge::ensure(&state.pool, &state.settings, date).await?;
+    if ids.is_empty() {
+        Err(ApiError::NotFound)
+    } else {
+        Ok(ids)
     }
-    let size = state.settings.int("challenge_size");
-    let since = date - chrono::Duration::days(state.settings.int("challenge_repeat_days"));
-    let picked: Vec<i32> = sqlx::query_scalar(
-        "SELECT id FROM sentences
-         WHERE active AND id <> ALL (
-             SELECT unnest(sentence_ids) FROM daily_challenges WHERE cairo_date > $1)
-         ORDER BY random() LIMIT $2",
-    )
-    .bind(since)
-    .bind(size)
-    .fetch_all(&state.pool)
-    .await?;
-    if picked.is_empty() {
-        return Err(ApiError::NotFound);
-    }
-    // Two first requests can race; the primary key keeps the first one.
-    sqlx::query("INSERT INTO daily_challenges (cairo_date, sentence_ids) VALUES ($1, $2) ON CONFLICT DO NOTHING")
-        .bind(date)
-        .bind(&picked)
-        .execute(&state.pool)
-        .await?;
-    sqlx::query_scalar("SELECT sentence_ids FROM daily_challenges WHERE cairo_date = $1")
-        .bind(date)
-        .fetch_one(&state.pool)
-        .await
-        .map_err(Into::into)
 }
 
 pub async fn challenge_today(State(state): State<AppState>, user: User) -> ApiResult<Value> {

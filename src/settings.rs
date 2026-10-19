@@ -56,6 +56,10 @@ impl Settings {
         })
     }
 
+    pub fn text(&self, key: &str) -> Option<String> {
+        self.get(key).and_then(|v| v.as_str().map(str::to_owned))
+    }
+
     pub fn bool(&self, key: &str) -> bool {
         self.get(key).and_then(|v| v.as_bool()).unwrap_or(false)
     }

@@ -33,13 +33,18 @@ pub(super) fn init_data(user_id: i64) -> String {
         .finish()
 }
 
-struct Client {
-    app: Router,
-    auth: String,
+pub(super) struct Client {
+    pub(super) app: Router,
+    pub(super) auth: String,
 }
 
 impl Client {
-    async fn call(&self, method: &str, path: &str, body: Option<Value>) -> (StatusCode, Value) {
+    pub(super) async fn call(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<Value>,
+    ) -> (StatusCode, Value) {
         let mut req = Request::builder()
             .method(method)
             .uri(path)
@@ -68,7 +73,7 @@ impl Client {
     }
 }
 
-async fn seed(pool: &PgPool) -> (i32, i32) {
+pub(super) async fn seed(pool: &PgPool) -> (i32, i32) {
     sqlx::query("INSERT INTO situations (slug, name_ar, name_en, icon, position) VALUES ('t', 'ت', 'T', 'chat', 0)")
         .execute(pool)
         .await
