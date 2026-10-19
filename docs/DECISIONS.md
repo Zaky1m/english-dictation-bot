@@ -143,3 +143,25 @@ Why: 1200 sentences and about 1500 words need roughly 2700 calls.
 - **Lesson result** is built from the running totals the client collects while
   the lesson is played; a reload during the result screen simply omits them.
 - League, charts and badges screens come with their data in Phase 7.
+
+## 13. Engagement rules
+
+- **Daily goal and streak**: a day counts when the user finishes `streak_goal`
+  lesson or review sentences that Cairo day (the daily challenge is separate).
+  A Pro freeze covers each missed day in a gap, drawn from the monthly
+  allowance, which refills at the first activity of a month. Free users restart
+  at 1 after any missed day.
+- **League points** are the scores of lesson and review sentences. A user joins a
+  group of up to 30 in their tier on the first points of a week; a per-tier lock
+  keeps groups from overfilling. The weekly job claims the week's `processed`
+  flag first, so it can run twice without moving anyone twice. The week always
+  starts on Saturday; the `league_week_start` setting is informational.
+- **Scheduler**: one task wakes every 30 seconds and runs what is due. Reminders
+  and the channel summary are switched off in the `settings` table
+  (`reminders_enabled`, `challenge_post_enabled`) until the maintainer approves
+  the wording. A user who blocked the bot is flagged `bot_blocked` (separate from
+  the admin `blocked`) and cleared when they write to the bot again.
+- **Fast typist** badge: a sentence of at least 20 letters typed at 150 ms per
+  letter or faster without the anti-cheat flag.
+- **Most missed** letters and words come from lifetime counters updated in the
+  solve transaction, because attempts are purged after a day.

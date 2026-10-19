@@ -27,6 +27,8 @@ export async function showResult(root, lessonId, ctx) {
       h('div', { class: 'bigcheck', html: icon('check') }),
       h('div', { class: 'headline' }, t('great')),
       stats,
+      ...(session?.badges ?? []).map((id) => h('div', { class: 'card row' }, h('span', { html: icon('star', 'big') }),
+        h('div', { class: 'grow' }, h('b', {}, t('badge_new')), h('div', { class: 'muted small' }, t(`badge_${id}`))))),
       me.streak.current > 0
         ? h('div', { class: 'card row' }, h('span', { html: icon('flame', 'big') }),
           h('div', { class: 'grow' }, h('b', {}, t('streak_days', { n: me.streak.current }))))

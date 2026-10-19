@@ -16,6 +16,7 @@ const PATHS = {
   clock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 3h6"/>',
   video: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3z"/>',
   // situation icons, named as in content/situations.toml
+  bolt: '<path d="M13 3L5 14h6l-1 7 8-11h-6z"/>',
   chat: '<path d="M4 5h16v11H9l-5 4z"/>',
   coffee: '<path d="M5 8h11v6a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V8zM16 10h2a2 2 0 0 1 0 4h-2M8 3v2M12 3v2"/>',
   fork: '<path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 2-3 5-3 8h3v10"/>',

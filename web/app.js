@@ -10,6 +10,7 @@ import { showProfile } from './profile.js';
 import { showSettings } from './settings.js';
 import { showPro } from './pro.js';
 import { showWords } from './words.js';
+import { showLeague } from './league.js';
 
 const tg = window.Telegram?.WebApp;
 const root = document.getElementById('app');
@@ -21,11 +22,12 @@ const ctx = {
   onLeave(fn) { this.leaveHandlers.push(fn); },
   go(hash) { location.hash = hash; },
   /** Running totals for a lesson, shown on its result screen. */
-  recordSolved(key, score) {
-    const s = sessions.get(key) ?? { score: 0, solved: 0, clean: 0, startedAt: Date.now() };
-    s.score += score.score;
+  recordSolved(key, data) {
+    const s = sessions.get(key) ?? { score: 0, solved: 0, clean: 0, badges: [], startedAt: Date.now() };
+    s.score += data.score.score;
     s.solved += 1;
-    s.clean += score.accuracy === 1 ? 1 : 0;
+    s.clean += data.score.accuracy === 1 ? 1 : 0;
+    s.badges.push(...data.new_badges);
     sessions.set(key, s);
   },
   takeSession(key) {
@@ -78,6 +80,7 @@ async function route() {
     if (name === 'result' && arg) return await showResult(root, Number(arg), ctx);
     if (name === 'limit') return await showLimit(root, ctx);
     if (name === 'profile') return await showProfile(root, ctx);
+    if (name === 'league') return await showLeague(root, ctx);
     if (name === 'settings') return await showSettings(root, ctx);
     if (name === 'pro') return await showPro(root, ctx);
     if (name === 'words') return await showWords(root, ctx);
