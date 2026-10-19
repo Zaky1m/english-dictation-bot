@@ -51,7 +51,10 @@ impl Config {
         };
         let required = |name: &'static str| get(name).ok_or(ConfigError::Missing(name));
 
-        let bind_addr = required("BIND_ADDR")?
+        // Hosting platforms such as Railway and Render only provide PORT.
+        let bind_addr = get("BIND_ADDR")
+            .or_else(|| get("PORT").map(|port| format!("0.0.0.0:{port}")))
+            .ok_or(ConfigError::Missing("BIND_ADDR"))?
             .parse()
             .map_err(|e: std::net::AddrParseError| ConfigError::Invalid {
                 name: "BIND_ADDR",
@@ -193,6 +196,17 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn port_is_used_when_bind_addr_is_missing() {
+        let mut vars: Vec<_> = base()
+            .into_iter()
+            .filter(|(k, _)| k != "BIND_ADDR")
+            .collect();
+        vars.push(("PORT".into(), "8080".into()));
+        let config = Config::from_vars(vars).expect("config should load");
+        assert_eq!(config.bind_addr.to_string(), "0.0.0.0:8080");
     }
 
     #[test]
