@@ -24,6 +24,7 @@ drops its own schema).
 - Money and reward actions are recorded atomically and idempotently in the
   database before they take effect.
 - User-facing text lives in `texts/` and `web/i18n/`, never in Rust or JS code.
+  Translations follow [TRANSLATING.md](TRANSLATING.md).
 - The Mini App is plain HTML, CSS and JS with no build step, no emoji, and
   inline SVG icons.
 - No secrets, personal data or deployment details in code, tests, docs or

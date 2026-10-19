@@ -1,59 +1,65 @@
 # English Dictation Bot
 
-[English](README.md)
+### تعلّم الإنجليزية بالاستماع والكتابة
 
-تعلّم الإنجليزية بكتابة ما تسمعه. ميني آب على تيليجرام للناطقين بالعربية، مبني بـRust وPostgreSQL.
+ميني آب على تيليجرام للتدرّب على الإنجليزية بالإملاء. تسمع جملة وتكتب ما سمعته، ويحدّد التطبيق كل حرف خاطئ حتى تكتبها صحيحة. الدروس مقسّمة على مواقف من الحياة اليومية، ومعها هدف يومي ودوري أسبوعي وتحدٍّ يومي يشجّع المتعلّم على الاستمرار.
+
+[البدء السريع](#البدء-السريع) · [الإعدادات](#الإعدادات) · [الترجمة](#الترجمة) · [مواصفات المنتج](docs/SPEC.md) · [English](README.md)
 
 ![شاشة التمرين على الموبايل، وفيها حرف خاطئ تحته خط](docs/screenshots/exercise-mobile-ar.png)
 
 ![خريطة الدروس على نافذة كمبيوتر](docs/screenshots/map-desktop-ar.png)
 
-في كل تمرين تُشغَّل جملة إنجليزية وتظهر ترجمتها العربية. يكتب المتعلّم الجملة في خانة لكل كلمة. يفحص السيرفر الإجابة ويرجع مواضع الحروف الخاطئة. ولا يرسل الجملة الصحيحة إلا بعد أن يحلّها المتعلّم أو يكشف كلمة، فلا يحتفظ العميل بالحل قبل ذلك.
+## ما الذي تحصل عليه
 
-## ما الذي فيه
-
-- 20 موقفًا يوميًا، في كل موقف 6 دروس، وفي كل درس 10 جمل. المجموع 1200 جملة، ولّدها Gemini مرة واحدة وفحصتها قواعد تحقق آلية.
-- صوت لكل جملة ولكل كلمة، مخزّن بصيغة MP3 ومقدَّم كملفات ثابتة.
-- حساب النقاط على السيرفر: دقة، ومكافأة سرعة، وكومبو، وحماية بسيطة من الغش.
-- هدف يومي وسلسلة أيام. مشتركو Pro لهم تجميدان للسلسلة كل شهر.
-- مراجعة متباعدة للجمل التي أخطأ فيها المتعلّم، بعد يوم ثم 3 أيام ثم 7 أيام.
-- دوري أسبوعي بسبع درجات مع ترقية ونزول، وتحدٍّ يومي له لوحة ترتيب خاصة.
-- شارات وكلمات محفوظة وإحصائيات. ويضيف Pro رسومًا بيانية وأكثر الحروف خطأً.
-- اشتراك Pro يُدفع بنجوم تيليجرام، أو يمنحه الأدمن يدويًا.
-- إعلانات مكافأة اختيارية عبر Adsgram.
-- لوحة أدمن للمستخدمين ومنح Pro والمدفوعات والإعدادات والمحتوى.
-- واجهة بالعربية والإنجليزية، من اليمين لليسار وبالعكس. على الكمبيوتر يملأ الميني آب النافذة ويدعم اختصارات لوحة المفاتيح.
+- تمارين إملاء قصيرة بصوت مسجّل لكل جملة ولكل كلمة
+- خانة إدخال لكل كلمة، وتحديد الحروف الخاطئة أثناء الكتابة
+- ترجمة تحت كل جملة ومعنى لكل كلمة
+- دروس مقسّمة على مواقف يومية، من التحية إلى السفر
+- فحص الإجابات على السيرفر، فلا يصل الحل إلى التطبيق قبل وقته
+- هدف يومي وسلسلة أيام، ومراجعة متباعدة للأخطاء، ودوري أسبوعي وتحدٍّ يومي
+- شارات وكلمات محفوظة وإحصائيات للتقدّم
+- اشتراك Pro بنجوم تيليجرام، وإعلانات مكافأة اختيارية
+- لوحة أدمن للمستخدمين والمدفوعات والإعدادات ومحتوى الدروس
+- اتجاه من اليمين لليسار ومن اليسار لليمين، مع اختصارات لوحة المفاتيح على الكمبيوتر
 
 ## البدء السريع
 
-تحتاج إلى Rust (نسخة stable، إصدار 2024) وPostgreSQL 16 وتوكن بوت من BotFather. تيليجرام لا يتصل إلا بعناوين HTTPS عامة، فللتجربة المحلية ضع التطبيق خلف نفق أو reverse proxy.
+تحتاج إلى Docker وتوكن بوت من [BotFather](https://t.me/BotFather) وعنوان HTTPS عام. تيليجرام لا يتصل إلا بـHTTPS، فللتجربة المحلية ضع التطبيق خلف نفق أو reverse proxy.
 
 ```bash
-cp .env.example .env          # املأ القيم
-cargo run --release -- serve
+cp .env.example .env              # fill in BOT_TOKEN, PUBLIC_URL, POSTGRES_PASSWORD and the secrets
+docker compose up --build         # starts the app and PostgreSQL
 ```
 
-يطبّق `serve` الـmigrations ويسجّل الويبهوك ويشغّل سيرفر HTTP. ابنِ دائمًا بـ`--release`.
+يطبّق التطبيق الـmigrations ويسجّل الويبهوك عند التشغيل.
 
-مع Docker، يشغّل الملف `compose.yml` التطبيق وPostgreSQL معًا:
+المستودع فيه الكود دون الدروس. ولّدها بمفاتيح Gemini الخاصة بك (`GEMINI_API_KEY_1` و`GEMINI_API_KEY_2` وهكذا في `.env`):
 
 ```bash
-cp .env.example .env
-docker compose up --build
+# write the sentences, translations and word meanings for every situation
+docker compose run --rm app eng content generate --all
+
+# record the missing sentence and word audio
+docker compose run --rm app eng content audio
 ```
 
-المستودع فيه الكود دون المحتوى. لملء قاعدة البيانات شغّل المولّد بمفاتيح Gemini الخاصة بك. توليد الصوت يحتاج أيضًا إلى `ffmpeg`.
+الخطة المجانية في Gemini تحدّ طلبات الصوت لكل مفتاح في اليوم، فقد يستغرق تسجيل كل الصوت عدة أيام. إضافة مفاتيح، أو مفتاح مفعّل عليه الدفع، يسرّع العملية.
+
+### بدون Docker
+
+تحتاج إلى Rust (نسخة stable، إصدار 2024) وPostgreSQL 16 و`ffmpeg`.
 
 ```bash
-cargo run --release -- content generate --all   # جمل كل المواقف
-cargo run --release -- content audio            # الصوت الناقص للجمل والكلمات
+cp .env.example .env              # set DATABASE_URL to your PostgreSQL database
+cargo run --release -- serve      # always build with --release
+cargo run --release -- content generate --all
+cargo run --release -- content audio
 ```
-
-الخطة المجانية في Gemini تحدّ عدد طلبات الصوت لكل مفتاح في اليوم، فقد يستغرق توليد كل الصوت عدة أيام ما لم تضف مفاتيح أكثر أو تفعّل الفوترة.
 
 ## الإعدادات
 
-كل شيء يأتي من متغيرات البيئة. الملف `.env.example` يسردها كلها.
+كل شيء يأتي من متغيرات البيئة، والملف `.env.example` يسردها كلها.
 
 | المتغير | الغرض |
 |---|---|
@@ -63,33 +69,40 @@ cargo run --release -- content audio            # الصوت الناقص للج
 | `DATABASE_URL` | رابط الاتصال بـPostgreSQL |
 | `WEBHOOK_PATH` و`WEBHOOK_SECRET` | جزء مسار الويبهوك والهيدر السري |
 | `ADSGRAM_REWARD_SECRET` و`ADSGRAM_BLOCK_ID` | إعلانات المكافأة، وتتوقف ما دام الـblock id فارغًا |
-| `ADMIN_IDS` و`ADMIN_USERNAME` | أرقام الأدمنز، وحساب التواصل للدفع اليدوي |
+| `ADMIN_IDS` و`ADMIN_USERNAME` | أرقام الأدمنز على تيليجرام، وحساب التواصل للدفع اليدوي |
 | `CHALLENGE_CHANNEL_ID` | القناة التي يُنشر فيها ملخص التحدي اليومي |
 | `DATA_DIR` و`WEB_DIR` | مجلد ملفات الصوت ومجلد الميني آب |
 | `GEMINI_API_KEY_<n>` | مفاتيح Gemini، تُستخدم بالتناوب |
 
-الحدود اليومية والأسعار ومعاملات النقاط محفوظة في جدول `settings`. تعدّلها لوحة الأدمن ويسري التعديل دون إعادة تشغيل.
+الحدود اليومية والأسعار وقواعد النقاط محفوظة في جدول `settings`. تعدّلها لوحة الأدمن ويسري التعديل دون إعادة تشغيل.
+
+## الترجمة
+
+الواجهة والبوت متاحان اليوم بالعربية والإنجليزية. إضافة لغة تحتاج إلى ملفي نصوص وسطر واحد في قائمة، دون أي تعديل في الكود، والخطوات في [TRANSLATING.md](TRANSLATING.md). تصحيح الترجمات الموجودة مرحَّب به بنفس القدر.
+
+محتوى الدروس (ترجمات الجمل ومعاني الكلمات) يُولَّد بالعربية حاليًا.
 
 ## كيف هو مبني
 
-برنامج واحد اسمه `eng`، وأوامره: `serve` و`content generate` و`content audio` و`content voices` و`webhook set`.
+برنامج Rust واحد اسمه `eng` يخدم ويبهوك البوت وواجهة JSON والميني آب. أوامره: `serve` و`content generate` و`content audio` و`content voices` و`webhook set`.
 
 ```
 src/
-  http/        الراوتر والمصادقة وملف لكل جزء من الـAPI
-  telegram/    معالجات الويبهوك ونصوص البوت وsmall caps والدفع
-  exercise/    التقسيم والفاحص وحساب النقاط (دوال نقية)
-  content/     توليد الجمل والفحص والصوت ومهام الأدمن
-  gemini/      مجمع المفاتيح وعملاء النص والصوت وتنظيف الصوت
-  jobs.rs      الشغل المجدول: الدوري والتحدي اليومي والمسح والتذكير
-migrations/    migrations الخاصة بـsqlx
-web/           الميني آب: HTML وCSS وJS عادي بلا build
-texts/         رسائل البوت بالعربية والإنجليزية
+  http/        axum router, authentication, one file per API area
+  telegram/    webhook handlers, bot texts, payments
+  exercise/    tokenizer, checker, scoring (pure functions)
+  content/     sentence generation, validation, audio, admin tasks
+  gemini/      key pool, text and speech clients, audio cleaning
+  jobs.rs      scheduled work: leagues, daily challenge, purge, reminders
+migrations/    sqlx migrations
+web/           the Mini App, plain HTML, CSS and JS with no build step
+web/i18n/      Mini App strings and the language list
+texts/         bot messages per language
 ```
 
 كل الحالة الدائمة في PostgreSQL. الحالة المؤقتة (المحاولات المفتوحة ومعرّفات تحديثات الويبهوك وكريديت الإعلانات غير المستخدم) تُمسح بعد يوم على الأكثر. يصف [docs/SPEC.md](docs/SPEC.md) سلوك المنتج، ويسجّل [docs/DECISIONS.md](docs/DECISIONS.md) أسباب القرارات الرئيسية.
 
-## الاختبارات
+## التطوير
 
 ```bash
 cargo fmt --all --check
@@ -99,10 +112,10 @@ cargo test --release
 
 الاختبارات التي تحتاج قاعدة بيانات تعمل حين يشير `TEST_DATABASE_URL` إلى قاعدة PostgreSQL مخصصة للتجارب. كل اختبار ينشئ schema مؤقتًا ويحذفه بعد انتهائه.
 
-## المساهمة
+## المساعدة والمساهمة
 
-المشكلات وطلبات الدمج مرحَّب بها. يذكر [CONTRIBUTING.md](CONTRIBUTING.md) الفحوصات التي تُشغَّل أولًا. أبلغ عن المشكلات الأمنية كما في [SECURITY.md](SECURITY.md).
+المشكلات والأفكار تذهب إلى متتبّع المشكلات. يذكر [CONTRIBUTING.md](CONTRIBUTING.md) الفحوصات قبل أي pull request، ويشرح [TRANSLATING.md](TRANSLATING.md) الترجمة، وتُبلَّغ المشكلات الأمنية كما في [SECURITY.md](SECURITY.md).
 
 ## الترخيص
 
-[MIT](LICENSE)
+منشور بموجب [رخصة MIT](LICENSE)
