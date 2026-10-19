@@ -12,6 +12,7 @@ pub struct Me {
     id: i64,
     lang: String,
     pro: bool,
+    ads_enabled: bool,
     usage: Usage,
     streak: Streak,
 }
@@ -38,6 +39,11 @@ pub fn daily_base_limit(state: &AppState, pro: bool) -> i64 {
     }
 }
 
+/// Ads show only when switched on and an Adsgram block is configured.
+pub fn ads_on(state: &AppState) -> bool {
+    state.settings.bool("ads_enabled") && state.config.adsgram_block_id.is_some()
+}
+
 pub async fn me(State(state): State<AppState>, user: User) -> ApiResult<Me> {
     let pro = is_pro(&state.pool, user.id).await?;
     let today = cairo::date(chrono::Utc::now());
@@ -60,7 +66,7 @@ pub async fn me(State(state): State<AppState>, user: User) -> ApiResult<Me> {
             .fetch_optional(&state.pool)
             .await?
             .unwrap_or((0, 0));
-    let ad_unlocks_left = if pro || !state.settings.bool("ads_enabled") {
+    let ad_unlocks_left = if pro || !ads_on(&state) {
         0
     } else {
         (state.settings.int("ad_unlocks_per_day") - i64::from(ad_unlocks)).max(0)
@@ -69,6 +75,7 @@ pub async fn me(State(state): State<AppState>, user: User) -> ApiResult<Me> {
         id: user.id,
         lang: user.lang,
         pro,
+        ads_enabled: ads_on(&state),
         usage: Usage {
             started: i64::from(started),
             limit: daily_base_limit(&state, pro) + bonus,

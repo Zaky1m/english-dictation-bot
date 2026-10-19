@@ -1,0 +1,21 @@
+{
+  "loading": "Loading",
+  "error_generic": "Something went wrong, please try again",
+  "error_auth": "Open the app from inside Telegram",
+  "type_in_english": "Type it in English",
+  "words_count": "{n} words",
+  "slower": "Slower",
+  "reveal_word": "Reveal word",
+  "reveal_needs_ad": "Reveal word - watch an ad",
+  "next": "Next",
+  "score": "Score",
+  "combo": "Combo",
+  "tap_word_hint": "Tap any word to hear it and see its meaning",
+  "save_word": "Save to my words",
+  "word_saved": "Saved",
+  "limit_reached": "Daily limit reached",
+  "locked": "This lesson is still locked",
+  "lesson_done": "Lesson finished",
+  "back_to_map": "Back to the map",
+  "close": "Close"
+}

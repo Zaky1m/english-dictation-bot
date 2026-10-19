@@ -31,6 +31,7 @@ pub struct AppState {
 
 pub fn router(state: AppState) -> Router {
     let audio = ServeDir::new(state.config.data_dir.join("audio"));
+    let web_dir = state.config.web_dir.clone();
     let api = Router::new()
         .route("/me", get(api_profile::me))
         .route("/map", get(api_profile::map))
@@ -56,6 +57,14 @@ pub fn router(state: AppState) -> Router {
                     HeaderValue::from_static("public, max-age=31536000, immutable"),
                 ))
                 .service(audio),
+        )
+        .fallback_service(
+            tower::ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::overriding(
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_static("no-cache"),
+                ))
+                .service(ServeDir::new(&web_dir).append_index_html_on_directories(true)),
         )
         .layer(TraceLayer::new_for_http())
         .with_state(state)
