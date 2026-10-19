@@ -9,6 +9,7 @@ mod exercise;
 mod gemini;
 mod http;
 mod jobs;
+mod languages;
 mod league;
 mod review;
 mod settings;

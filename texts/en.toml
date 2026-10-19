@@ -4,7 +4,6 @@ welcome = """⌯ Welcome {name}
 • Start with the button below"""
 open_app = "Start learning"
 open_admin = "Admin panel"
-switch_lang = "العربية"
 lang_changed = """⌯ Language changed
 • Current language ↣ English"""
 reminders_off = """⌯ Reminders turned off

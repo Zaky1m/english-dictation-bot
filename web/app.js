@@ -107,7 +107,7 @@ async function start() {
   try {
     ctx.me = await api('GET', '/api/me');
   } catch (e) {
-    await loadLanguage('ar');
+    await loadLanguage(tg?.initDataUnsafe?.user?.language_code);
     return message(t(e instanceof ApiError && e.status === 401 ? 'error_auth' : 'error_generic'));
   }
   await loadLanguage(ctx.me.lang);

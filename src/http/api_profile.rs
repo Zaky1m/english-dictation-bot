@@ -239,7 +239,7 @@ pub async fn update_me(
     Json(body): Json<SettingsBody>,
 ) -> Result<axum::http::StatusCode, super::error::ApiError> {
     if let Some(lang) = &body.lang {
-        if lang != "ar" && lang != "en" {
+        if !crate::languages::is_supported(lang) {
             return Err(super::error::ApiError::BadRequest("bad_lang"));
         }
         sqlx::query("UPDATE users SET lang = $2 WHERE id = $1")

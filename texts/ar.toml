@@ -4,7 +4,6 @@ welcome = """⌯ أهلًا {name}
 • ابدأ من الزر تحت"""
 open_app = "ابدأ التعلم"
 open_admin = "لوحة الأدمن"
-switch_lang = "English"
 lang_changed = """⌯ تم تغيير اللغة
 • اللغة الحالية ↢ العربية"""
 reminders_off = """⌯ تم إيقاف التذكير

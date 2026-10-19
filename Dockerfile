@@ -9,6 +9,8 @@ RUN mkdir src && echo 'fn main() {}' > src/main.rs \
 COPY src ./src
 COPY migrations ./migrations
 COPY texts ./texts
+COPY web/i18n ./web/i18n
+COPY build.rs ./
 RUN cargo build --release --locked
 
 FROM debian:bookworm-slim

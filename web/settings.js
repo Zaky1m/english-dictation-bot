@@ -2,11 +2,12 @@ import { api } from './api.js';
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { header } from './nav.js';
-import { loadLanguage, t } from './i18n.js';
+import { languages, loadLanguage, t } from './i18n.js';
 
 export async function showSettings(root, ctx) {
   const me = await api('GET', '/api/me');
   ctx.me = me;
+  const langs = await languages();
 
   async function setLang(lang) {
     if (lang === me.lang) return;
@@ -19,13 +20,13 @@ export async function showSettings(root, ctx) {
     showSettings(root, ctx);
   }
 
-  const langBtn = (code, label) => h('button', { class: code === me.lang ? 'btn' : 'btn2 dim', style: 'height:46px', onclick: () => setLang(code) }, label);
+  const langBtn = (l) => h('button', { class: l.code === me.lang ? 'btn' : 'btn2 dim', style: 'height:46px', lang: l.code, dir: l.dir, onclick: () => setLang(l.code) }, l.name);
   root.replaceChildren(
     header(t('settings_title'), ctx, { back: '#/profile' }),
     h('div', { class: 'body' },
       h('div', { class: 'card stack full' },
         h('b', {}, t('language')),
-        h('div', { class: 'grid2' }, langBtn('ar', 'العربية'), langBtn('en', 'English')),
+        h('div', { class: 'grid2' }, ...langs.map(langBtn)),
         h('div', { class: 'muted small' }, t('language_note'))),
       h('div', { class: 'card row full' },
         h('div', { class: 'grow' }, h('b', {}, t('reminders')), h('div', { class: 'muted small' }, t('reminders_text'))),

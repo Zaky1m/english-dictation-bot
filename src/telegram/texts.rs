@@ -4,18 +4,22 @@ use std::collections::HashMap;
 
 type Table = HashMap<String, String>;
 
-/// Bot messages per language. Keys are the same in every file (checked by a test).
+include!(concat!(env!("OUT_DIR"), "/text_files.rs"));
+
+/// Bot messages per language, one `texts/<code>.toml` each. Keys are the same in
+/// every file (checked by a test).
 pub struct Texts {
-    ar: Table,
-    en: Table,
+    tables: HashMap<String, Table>,
 }
 
 impl Texts {
     pub fn load() -> anyhow::Result<Self> {
-        Ok(Self {
-            ar: toml::from_str(include_str!("../../texts/ar.toml")).context("texts/ar.toml")?,
-            en: toml::from_str(include_str!("../../texts/en.toml")).context("texts/en.toml")?,
-        })
+        let mut tables = HashMap::new();
+        for (code, source) in TEXT_FILES {
+            let table = toml::from_str(source).with_context(|| format!("texts/{code}.toml"))?;
+            tables.insert(code.to_string(), table);
+        }
+        Ok(Self { tables })
     }
 
     /// Renders `key` for `lang`, then fills `{placeholders}` with HTML-escaped
@@ -33,9 +37,14 @@ impl Texts {
         values: &[(&str, &str)],
         raw: &[(&str, &str)],
     ) -> String {
+        let lang = if self.tables.contains_key(lang) {
+            lang
+        } else {
+            crate::languages::default_code()
+        };
+        // Small caps is a style for English only; other Latin scripts stay as written.
         let english = lang == "en";
-        let table = if english { &self.en } else { &self.ar };
-        let Some(template) = table.get(key) else {
+        let Some(template) = self.tables.get(lang).and_then(|t| t.get(key)) else {
             tracing::error!(key, lang, "missing bot text");
             return String::new();
         };
@@ -54,13 +63,8 @@ impl Texts {
     }
 
     #[cfg(test)]
-    fn keys(
-        &self,
-    ) -> (
-        std::collections::BTreeSet<&String>,
-        std::collections::BTreeSet<&String>,
-    ) {
-        (self.ar.keys().collect(), self.en.keys().collect())
+    fn keys(&self, lang: &str) -> std::collections::BTreeSet<&String> {
+        self.tables[lang].keys().collect()
     }
 }
 
@@ -75,10 +79,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn both_languages_have_the_same_keys() {
+    fn every_language_has_the_same_keys_as_english() {
         let texts = Texts::load().unwrap();
-        let (ar, en) = texts.keys();
-        assert_eq!(ar, en);
+        for (code, _) in TEXT_FILES {
+            assert_eq!(texts.keys(code), texts.keys("en"), "texts/{code}.toml");
+        }
+    }
+
+    #[test]
+    fn bot_texts_match_the_language_list() {
+        let files: std::collections::BTreeSet<_> = TEXT_FILES.iter().map(|(c, _)| *c).collect();
+        let listed: std::collections::BTreeSet<_> = crate::languages::all()
+            .iter()
+            .map(|l| l.code.as_str())
+            .collect();
+        assert_eq!(
+            files, listed,
+            "texts/*.toml and web/i18n/languages.json differ"
+        );
     }
 
     #[test]

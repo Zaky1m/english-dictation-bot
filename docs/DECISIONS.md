@@ -189,3 +189,25 @@ Why: 1200 sentences and about 1500 words need roughly 2700 calls.
   interrupted tasks as failed, and re-running resumes only what is missing.
 - **Revoking Pro** ends every subscription now, including future-dated
   extensions. A recurring Stars subscription must also be cancelled in Telegram.
+
+## 15. Adding interface languages
+
+Context: the project is public and translators should be able to add a language
+without touching Rust or JavaScript.
+
+Decision:
+- `web/i18n/languages.json` lists the interface languages (code, native name,
+  text direction). The server embeds the same file, so the bot and the Mini App
+  never disagree. The first entry is the fallback for unknown codes.
+- A build script embeds every `texts/<code>.toml`. Tests fail when a language
+  is listed without its files or when any file misses or adds keys.
+- The database no longer restricts `users.lang`; the API and the bot accept only
+  listed codes.
+- The bot shows one button per other language, labelled in that language.
+- Small caps applies to English bot text only.
+- Sentence translations, word meanings and situation names exist in Arabic (and
+  situation names in English). Other interface languages show the English
+  situation names. Translating the learning content itself is a separate,
+  larger change.
+- Translations arrive as pull requests, described in `TRANSLATING.md`. A hosted
+  tool such as Weblate can come later if many translators join.
