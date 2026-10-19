@@ -1,6 +1,7 @@
 mod config;
 mod content;
 mod db;
+mod exercise;
 mod gemini;
 mod http;
 
@@ -28,6 +29,18 @@ enum Command {
 
 #[derive(Subcommand)]
 enum ContentCommand {
+    /// Generate sentences for one situation, or all of them
+    Generate {
+        #[arg(long, conflicts_with = "all")]
+        situation: Option<String>,
+        #[arg(long)]
+        all: bool,
+    },
+    /// Generate MP3 for sentences and words that have none
+    Audio {
+        #[arg(long)]
+        missing: bool,
+    },
     /// Write one sample MP3 per candidate voice
     Voices {
         #[arg(long)]
@@ -49,13 +62,7 @@ async fn main() -> anyhow::Result<()> {
 
     match Cli::parse().command {
         Command::Serve => serve().await,
-        Command::Content {
-            command: ContentCommand::Voices { text, out },
-        } => {
-            let keys = gemini_keys_from_env();
-            let gemini = gemini::Gemini::new(keys)?;
-            content::voices::write_samples(&gemini, &text, &out).await
-        }
+        Command::Content { command } => content_command(command).await,
     }
 }
 
@@ -82,4 +89,26 @@ async fn shutdown_signal() {
 /// Voice sampling only needs the Gemini keys, so it skips the full Config.
 fn gemini_keys_from_env() -> Vec<String> {
     Config::gemini_keys_from(std::env::vars())
+}
+
+async fn content_command(command: ContentCommand) -> anyhow::Result<()> {
+    if let ContentCommand::Voices { text, out } = &command {
+        let gemini = gemini::Gemini::new(gemini_keys_from_env())?;
+        return content::voices::write_samples(&gemini, text, out).await;
+    }
+    let config = Config::from_env().context("invalid configuration")?;
+    let pool = db::connect(&config.database_url).await?;
+    db::migrate(&pool).await?;
+    let gemini = std::sync::Arc::new(gemini::Gemini::new(config.gemini_keys.clone())?);
+    match command {
+        ContentCommand::Generate { situation, all } => {
+            anyhow::ensure!(
+                all || situation.is_some(),
+                "pass --situation <slug> or --all"
+            );
+            content::generate::run(&pool, gemini, situation.map(|s| vec![s])).await
+        }
+        ContentCommand::Audio { .. } => content::audio::run(&pool, gemini, &config.data_dir).await,
+        ContentCommand::Voices { .. } => unreachable!("handled above"),
+    }
 }

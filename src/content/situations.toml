@@ -1,0 +1,119 @@
+[[situation]]
+slug = "greetings"
+name_ar = "التحيات"
+name_en = "Greetings"
+icon = "chat"
+
+[[situation]]
+slug = "cafe"
+name_ar = "المقهى"
+name_en = "Café"
+icon = "coffee"
+
+[[situation]]
+slug = "restaurant"
+name_ar = "المطعم"
+name_en = "Restaurant"
+icon = "fork"
+
+[[situation]]
+slug = "shopping"
+name_ar = "التسوق"
+name_en = "Shopping"
+icon = "bag"
+
+[[situation]]
+slug = "airport"
+name_ar = "المطار"
+name_en = "Airport"
+icon = "plane"
+
+[[situation]]
+slug = "hotel"
+name_ar = "الفندق"
+name_en = "Hotel"
+icon = "bed"
+
+[[situation]]
+slug = "directions"
+name_ar = "السؤال عن الطريق"
+name_en = "Directions"
+icon = "compass"
+
+[[situation]]
+slug = "taxi-transport"
+name_ar = "التاكسي والمواصلات"
+name_en = "Taxi and transport"
+icon = "car"
+
+[[situation]]
+slug = "doctor"
+name_ar = "عند الدكتور"
+name_en = "At the doctor"
+icon = "heart"
+
+[[situation]]
+slug = "pharmacy"
+name_ar = "الصيدلية"
+name_en = "Pharmacy"
+icon = "pill"
+
+[[situation]]
+slug = "phone-calls"
+name_ar = "المكالمات"
+name_en = "Phone calls"
+icon = "phone"
+
+[[situation]]
+slug = "work-office"
+name_ar = "الشغل والمكتب"
+name_en = "Work and office"
+icon = "briefcase"
+
+[[situation]]
+slug = "school-study"
+name_ar = "المدرسة والدراسة"
+name_en = "School and study"
+icon = "book"
+
+[[situation]]
+slug = "family-home"
+name_ar = "العائلة والبيت"
+name_en = "Family and home"
+icon = "home"
+
+[[situation]]
+slug = "friends-plans"
+name_ar = "الأصدقاء والخطط"
+name_en = "Friends and plans"
+icon = "users"
+
+[[situation]]
+slug = "weather-small-talk"
+name_ar = "الطقس والحديث العابر"
+name_en = "Weather and small talk"
+icon = "cloud"
+
+[[situation]]
+slug = "bank-money"
+name_ar = "البنك والفلوس"
+name_en = "Bank and money"
+icon = "bank"
+
+[[situation]]
+slug = "emergencies"
+name_ar = "الطوارئ"
+name_en = "Emergencies"
+icon = "alert"
+
+[[situation]]
+slug = "online-tech"
+name_ar = "الإنترنت والتقنية"
+name_en = "Online and tech"
+icon = "laptop"
+
+[[situation]]
+slug = "travel-sightseeing"
+name_ar = "السفر والسياحة"
+name_en = "Travel and sightseeing"
+icon = "camera"
