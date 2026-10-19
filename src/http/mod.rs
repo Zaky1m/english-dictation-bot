@@ -1,13 +1,16 @@
 mod api_exercise;
+mod api_pay;
 mod api_profile;
 mod api_review;
 mod api_words;
 mod error;
 mod solve;
 mod user;
+mod webhook;
 
 use crate::config::Config;
 use crate::settings::Settings;
+use crate::telegram::{Bot, Texts};
 use axum::Router;
 use axum::http::{HeaderValue, header};
 use axum::routing::{get, post};
@@ -22,6 +25,8 @@ pub struct AppState {
     pub pool: PgPool,
     pub config: Arc<Config>,
     pub settings: Arc<Settings>,
+    pub bot: Arc<Bot>,
+    pub texts: Arc<Texts>,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -37,9 +42,11 @@ pub fn router(state: AppState) -> Router {
         .route("/challenge/today", get(api_review::challenge_today))
         .route("/challenge/next", post(api_review::next_challenge))
         .route("/words", get(api_words::list))
-        .route("/words/{word}/save", post(api_words::save));
+        .route("/words/{word}/save", post(api_words::save))
+        .route("/pay/stars/{plan}", post(api_pay::stars_invoice));
     Router::new()
         .route("/health", get(health))
+        .route("/tg/{path}", post(webhook::receive))
         .nest("/api", api)
         .nest_service(
             "/audio",
@@ -57,6 +64,9 @@ pub fn router(state: AppState) -> Router {
 async fn health() -> &'static str {
     "ok"
 }
+
+#[cfg(test)]
+mod bot_tests;
 
 #[cfg(test)]
 mod flow_tests;
@@ -92,6 +102,8 @@ mod tests {
                 .unwrap(),
             config: Arc::new(test_config()),
             settings: Arc::new(Settings::empty()),
+            bot: Arc::new(Bot::new("1:x", "http://127.0.0.1:1").unwrap()),
+            texts: Arc::new(Texts::load().unwrap()),
         };
         let res = router(state)
             .oneshot(Request::get("/health").body(Body::empty()).unwrap())
@@ -110,6 +122,8 @@ mod tests {
                 .unwrap(),
             config: Arc::new(test_config()),
             settings: Arc::new(Settings::empty()),
+            bot: Arc::new(Bot::new("1:x", "http://127.0.0.1:1").unwrap()),
+            texts: Arc::new(Texts::load().unwrap()),
         };
         let res = router(state)
             .oneshot(Request::get("/api/me").body(Body::empty()).unwrap())

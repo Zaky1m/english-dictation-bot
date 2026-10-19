@@ -11,7 +11,7 @@ use tower::ServiceExt;
 
 const TOKEN: &str = "123456:TEST-TOKEN";
 
-fn init_data(user_id: i64) -> String {
+pub(super) fn init_data(user_id: i64) -> String {
     let user = format!(r#"{{"id":{user_id},"first_name":"T"}}"#);
     let auth_date = chrono::Utc::now().timestamp().to_string();
     let mut fields = [("auth_date", auth_date.as_str()), ("user", user.as_str())];
@@ -137,6 +137,8 @@ async fn learner_flow_end_to_end() {
         pool: pool.clone(),
         config: Arc::new(tests::test_config()),
         settings: settings.clone(),
+        bot: Arc::new(Bot::new("1:x", "http://127.0.0.1:1").unwrap()),
+        texts: Arc::new(Texts::load().unwrap()),
     };
     let client = Client {
         app: router(state),

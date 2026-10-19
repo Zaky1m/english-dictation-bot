@@ -106,3 +106,22 @@ Why: 1200 sentences and about 1500 words need roughly 2700 calls.
   open attempt costs nothing.
 - Streak, league points and badges are written inside the same solve
   transaction in Phase 7, where their rules and tests live.
+
+## 11. Bot client and payments
+
+- **Own thin Bot API client** (about 100 lines on reqwest) instead of a Telegram
+  crate: the bot uses six methods, and the client can hide the token from error
+  messages (reqwest errors include the URL, which contains the token).
+- **Webhook registration** runs on every start and through `eng webhook set`.
+  A failure is logged but does not stop the server. Do not start the server
+  against the production bot token before the public URL is live, because it
+  would point the bot at a dead address.
+- **Webhook safety**: the path segment and the secret header are both compared
+  in constant time. An update id is stored before handling and removed again if
+  handling fails, so Telegram's retry is processed instead of skipped.
+- **Stars**: the monthly plan is a recurring subscription (30 days, matching
+  `subscription_period` 2592000); the yearly plan is a single payment of 365
+  days. A purchase extends the current end date instead of overlapping it, and a
+  payment is recorded once per `telegram_payment_charge_id` in one transaction
+  together with the subscription row.
+- **Menu button** text is `Eng`, because Telegram stores one text for all users.

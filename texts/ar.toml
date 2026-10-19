@@ -1,0 +1,22 @@
+welcome = """⌯ أهلًا {name}
+• اسمع الجملة واكتبها بالإنجليزي
+• جمل جديدة كل يوم ودوري أسبوعي
+• ابدأ من الزر تحت"""
+open_app = "ابدأ التعلم"
+open_admin = "لوحة الأدمن"
+switch_lang = "English"
+lang_changed = """⌯ تم تغيير اللغة
+• اللغة الحالية ↢ العربية"""
+reminders_off = """⌯ تم إيقاف التذكير
+• تقدر تشغله تاني من الإعدادات"""
+turn_off_reminders = "إيقاف التذكير"
+invoice_title_month = "اشتراك Pro شهري"
+invoice_title_year = "اشتراك Pro سنوي"
+invoice_description = "50 جملة يوميًا وكشف الكلمات من غير إعلانات وكل الدروس مفتوحة"
+payment_thanks = """⌯ تم تفعيل Pro
+• الخطة ↢ {plan}
+• ينتهي في ↢ {until}"""
+plan_month = "شهر"
+plan_year = "سنة"
+pay_rejected = "الدفع مش صالح، حاول تاني من التطبيق"
+unknown = """⌯ اضغط /start عشان تبدأ"""

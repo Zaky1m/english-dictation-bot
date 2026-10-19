@@ -10,3 +10,4 @@ All notable changes are documented here. The format follows
 - Gemini key pool, text-to-speech client and `eng content voices`.
 - Initial database schema with seeded settings.
 - Mini App authentication, scoring, answer checking and the learner API.
+- Telegram bot: webhook with deduplication, start and language switch, Stars invoices and payments.
