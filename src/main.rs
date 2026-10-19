@@ -8,6 +8,8 @@ mod gemini;
 mod http;
 mod review;
 mod settings;
+mod telegram;
+mod users;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -24,11 +26,22 @@ struct Cli {
 enum Command {
     /// Run the HTTP server
     Serve,
+    /// Register the Telegram webhook and menu button
+    Webhook {
+        #[command(subcommand)]
+        command: WebhookCommand,
+    },
     /// Content tooling
     Content {
         #[command(subcommand)]
         command: ContentCommand,
     },
+}
+
+#[derive(Subcommand)]
+enum WebhookCommand {
+    /// Point the bot at PUBLIC_URL (also done on every start)
+    Set,
 }
 
 #[derive(Subcommand)]
@@ -69,6 +82,13 @@ async fn main() -> anyhow::Result<()> {
 
     match Cli::parse().command {
         Command::Serve => serve().await,
+        Command::Webhook {
+            command: WebhookCommand::Set,
+        } => {
+            let config = Config::from_env().context("invalid configuration")?;
+            let bot = telegram::Bot::new(&config.bot_token, TELEGRAM_API)?;
+            register_webhook_checked(&bot, &config).await
+        }
         Command::Content { command } => content_command(command).await,
     }
 }
@@ -81,10 +101,14 @@ async fn serve() -> anyhow::Result<()> {
         .await
         .with_context(|| format!("cannot bind {}", config.bind_addr))?;
     tracing::info!(addr = %config.bind_addr, gemini_keys = config.gemini_keys.len(), "listening");
+    let bot = std::sync::Arc::new(telegram::Bot::new(&config.bot_token, TELEGRAM_API)?);
+    register_webhook(&bot, &config).await;
     let state = http::AppState {
         pool: pool.clone(),
         settings: std::sync::Arc::new(settings::Settings::load(&pool).await?),
         config: std::sync::Arc::new(config),
+        bot,
+        texts: std::sync::Arc::new(telegram::Texts::load()?),
     };
     axum::serve(listener, http::router(state))
         .with_graceful_shutdown(shutdown_signal())
@@ -126,5 +150,26 @@ async fn content_command(command: ContentCommand) -> anyhow::Result<()> {
         }
         ContentCommand::Audio { .. } => content::audio::run(&pool, gemini, &config.data_dir).await,
         ContentCommand::Voices { .. } => unreachable!("handled above"),
+    }
+}
+
+const TELEGRAM_API: &str = "https://api.telegram.org";
+
+async fn register_webhook_checked(bot: &telegram::Bot, config: &Config) -> anyhow::Result<()> {
+    let url = format!("{}/tg/{}", config.public_url, config.webhook_path);
+    bot.set_webhook(&url, &config.webhook_secret)
+        .await
+        .context("setWebhook failed")?;
+    bot.set_menu_button("Eng", &config.public_url)
+        .await
+        .context("setChatMenuButton failed")?;
+    tracing::info!("webhook and menu button registered");
+    Ok(())
+}
+
+/// Registration problems must not stop the server: the app still serves users.
+async fn register_webhook(bot: &telegram::Bot, config: &Config) {
+    if let Err(e) = register_webhook_checked(bot, config).await {
+        tracing::error!(error = %format!("{e:#}"), "could not register the webhook");
     }
 }

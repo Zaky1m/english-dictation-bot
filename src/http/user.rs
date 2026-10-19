@@ -26,20 +26,15 @@ impl FromRequestParts<AppState> for User {
             tracing::warn!(reason = %e, "rejected initData");
             ApiError::Unauthorized
         })?;
-        let (lang, blocked): (String, bool) = sqlx::query_as(
-            "INSERT INTO users (id, name, username) VALUES ($1, $2, $3)
-             ON CONFLICT (id) DO UPDATE SET name = $2, username = $3
-             RETURNING lang, blocked",
-        )
-        .bind(tg.id)
-        .bind(&tg.name)
-        .bind(&tg.username)
-        .fetch_one(&state.pool)
-        .await?;
-        if blocked {
+        let profile =
+            crate::users::upsert(&state.pool, tg.id, &tg.name, tg.username.as_deref()).await?;
+        if profile.blocked {
             return Err(ApiError::Forbidden("blocked"));
         }
-        Ok(Self { id: tg.id, lang })
+        Ok(Self {
+            id: tg.id,
+            lang: profile.lang,
+        })
     }
 }
 

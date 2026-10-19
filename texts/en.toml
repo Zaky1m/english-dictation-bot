@@ -1,0 +1,22 @@
+welcome = """⌯ Welcome {name}
+• Listen to the sentence and type it in English
+• New sentences every day and a weekly league
+• Start with the button below"""
+open_app = "Start learning"
+open_admin = "Admin panel"
+switch_lang = "العربية"
+lang_changed = """⌯ Language changed
+• Current language ↣ English"""
+reminders_off = """⌯ Reminders turned off
+• You can turn them back on in settings"""
+turn_off_reminders = "Turn off reminders"
+invoice_title_month = "Pro monthly"
+invoice_title_year = "Pro yearly"
+invoice_description = "50 sentences a day, reveal words without ads, and every lesson unlocked"
+payment_thanks = """⌯ Pro is active
+• Plan ↣ {plan}
+• Ends on ↣ {until}"""
+plan_month = "Month"
+plan_year = "Year"
+pay_rejected = "The payment is not valid, please try again from the app"
+unknown = """⌯ Send /start to begin"""
