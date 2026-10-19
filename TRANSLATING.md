@@ -28,7 +28,7 @@ Edit the line in the language's two files and open a pull request. Small fixes a
 
 4. Open a pull request. The checks fail if a key is missing or misspelled, and the failure names the key
 
-To see it before sending, run the app (see the [README](README.md#quick-start)) and pick your language in Settings.
+To see it before sending, run the app (see the [deployment guide](docs/deploy.md)) and pick your language in Settings.
 
 ## Rules for the text
 
