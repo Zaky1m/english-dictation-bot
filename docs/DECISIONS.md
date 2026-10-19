@@ -85,3 +85,24 @@ Context: the free tier allows 10 requests per day per key for each TTS model.
 Decision: generation resumes where it stopped (`eng content audio` only touches
 files that are missing), so it can run over several days or on a paid key.
 Why: 1200 sentences and about 1500 words need roughly 2700 calls.
+
+## 10. API details the spec left open
+
+- **Combo** is the number of consecutive clean sentences including the current
+  one when it is clean, capped by `score_combo_cap`. A sentence with a mistake
+  or reveal resets it to zero. It is stored in `users.combo` and updated in the
+  solve transaction.
+- **Reveal** is free for Pro users and for everyone while ads are disabled.
+  With ads enabled, a free user needs an unclaimed ad credit, consumed
+  atomically.
+- **Review and challenge starts are POST** (`/api/review/next`,
+  `/api/challenge/next`) because they create an attempt; `GET
+  /api/challenge/today` only reports status.
+- **Lesson unlock** follows one global order (situation position, then lesson
+  number): a lesson opens when the one before it, even in the previous
+  situation, is complete.
+- **Daily limit** is enforced by one atomic upsert on `daily_usage`, serialized
+  per user with an advisory lock, so double taps cannot overspend. Resuming an
+  open attempt costs nothing.
+- Streak, league points and badges are written inside the same solve
+  transaction in Phase 7, where their rules and tests live.

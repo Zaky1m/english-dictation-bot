@@ -1,9 +1,13 @@
+mod auth;
+mod cairo;
 mod config;
 mod content;
 mod db;
 mod exercise;
 mod gemini;
 mod http;
+mod review;
+mod settings;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -77,7 +81,12 @@ async fn serve() -> anyhow::Result<()> {
         .await
         .with_context(|| format!("cannot bind {}", config.bind_addr))?;
     tracing::info!(addr = %config.bind_addr, gemini_keys = config.gemini_keys.len(), "listening");
-    axum::serve(listener, http::router())
+    let state = http::AppState {
+        pool: pool.clone(),
+        settings: std::sync::Arc::new(settings::Settings::load(&pool).await?),
+        config: std::sync::Arc::new(config),
+    };
+    axum::serve(listener, http::router(state))
         .with_graceful_shutdown(shutdown_signal())
         .await
         .context("server error")?;

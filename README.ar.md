@@ -28,3 +28,15 @@ eng content audio --repair        # ينضّف فرقعة الأول وانفج�
 
 الصوت Aoede. نموذج الصوت بيضيف فرقعة في أول الملف وانفجار في آخره، فبنقصهم قبل التحويل لـMP3.
 الخطة المجانية لـGemini بتسمح بـ10 طلبات يوميًا لكل مفتاح لنموذج الصوت، فالتوليد بيكمل من حيث وقف.
+
+## الـAPI
+
+كل الطلبات بترسل `Authorization: tma <initData>` والسيرفر بيتحقق من التوقيع (HMAC) ويرفض أي initData أقدم من 24 ساعة.
+الإجابة الصحيحة ما بتوصلش للعميل غير بعد الحل أو كشف كلمة.
+
+- `GET /api/me` و`GET /api/map`
+- `POST /api/lessons/{id}/next` ثم `POST /api/attempts/{id}/play` و`/check` و`/reveal`
+- `POST /api/review/next` و`GET /api/challenge/today` و`POST /api/challenge/next`
+- `GET /api/words` و`POST /api/words/{word}/save`
+
+الاختبار الكامل للتدفق بيشتغل لو `TEST_DATABASE_URL` متحدد (بيعمل schema مؤقت وبيمسحه).
