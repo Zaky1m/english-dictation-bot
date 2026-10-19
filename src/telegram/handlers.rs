@@ -76,19 +76,20 @@ async fn on_message(state: &AppState, message: Message) -> Result<(), HandlerErr
 fn welcome_keyboard(state: &AppState, user_id: i64, lang: &str) -> serde_json::Value {
     let t = &state.texts;
     let url = &state.config.public_url;
-    let other = if lang == "en" { "ar" } else { "en" };
-    let mut rows = vec![
-        vec![web_app_button(
-            &t.render(lang, "open_app", &[]),
-            url,
-            "primary",
-        )],
-        vec![callback_button(
-            &t.render(lang, "switch_lang", &[]),
-            &format!("lang:{other}"),
-            "success",
-        )],
-    ];
+    let mut rows = vec![vec![web_app_button(
+        &t.render(lang, "open_app", &[]),
+        url,
+        "primary",
+    )]];
+    // One button per other language, labelled in that language, three to a row.
+    let others: Vec<_> = crate::languages::all()
+        .iter()
+        .filter(|l| l.code != lang)
+        .map(|l| callback_button(&l.name, &format!("lang:{}", l.code), "success"))
+        .collect();
+    for row in others.chunks(3) {
+        rows.push(row.to_vec());
+    }
     if state.config.admin_ids.contains(&user_id) {
         rows.push(vec![web_app_button(
             &t.render(lang, "open_admin", &[]),
@@ -126,9 +127,12 @@ async fn on_callback(state: &AppState, query: CallbackQuery) -> Result<(), Handl
     let (Some(data), Some(message)) = (query.data.as_deref(), &query.message) else {
         return Ok(());
     };
+    let chosen_lang = data
+        .strip_prefix("lang:")
+        .filter(|code| crate::languages::is_supported(code));
     match data {
-        "lang:ar" | "lang:en" => {
-            let lang = &data[5..];
+        _ if chosen_lang.is_some() => {
+            let lang = chosen_lang.unwrap_or_default();
             sqlx::query("UPDATE users SET lang = $2 WHERE id = $1")
                 .bind(sender.id)
                 .bind(lang)
@@ -166,7 +170,7 @@ async fn on_pre_checkout(state: &AppState, query: PreCheckoutQuery) -> Result<()
         .bind(query.from.id)
         .fetch_optional(&state.pool)
         .await?;
-    let lang = lang.unwrap_or_else(|| "ar".into());
+    let lang = lang.unwrap_or_else(|| crate::languages::default_code().into());
     let expected = match payments::parse_payload(&query.invoice_payload) {
         Some((plan, user)) if user == query.from.id => Some(stars_price(state, plan)),
         _ => None,

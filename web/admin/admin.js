@@ -168,7 +168,7 @@ async function start() {
   try {
     me = await api('GET', '/api/me');
   } catch (e) {
-    await loadLanguage('ar');
+    await loadLanguage(tg?.initDataUnsafe?.user?.language_code);
     root.replaceChildren(h('div', { class: 'center-screen' }, t(e instanceof ApiError && e.status === 401 ? 'error_auth' : 'error_generic')));
     return;
   }

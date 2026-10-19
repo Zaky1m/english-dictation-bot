@@ -37,7 +37,7 @@ export async function showMap(root, ctx) {
       h('div', { class: 'card sithead' },
         h('span', { html: icon(s.icon, 'big') }),
         h('div', { class: 'grow' },
-          h('div', { class: 'sit' }, lang === 'en' ? s.name_en : s.name_ar),
+          h('div', { class: 'sit' }, lang === 'ar' ? s.name_ar : s.name_en),
           h('div', { class: 'muted small' }, t('lesson_n_of', { n: doneLessons ? doneLessons.number : s.lessons.length, total: s.lessons.length }))),
         h('div', { class: 'bar', style: 'width:70px' }, h('i', { style: `width:${Math.round((done / s.lessons.length) * 100)}%` }))),
       h('div', { class: 'path' }, s.lessons.map(node)));
