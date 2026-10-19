@@ -359,6 +359,23 @@ pub async fn check(
     .await?;
     tx.commit().await?;
 
+    // Lets the client preload the next sentence while the learner reads the meanings.
+    let next_audio_url = if attempt.kind == "lesson" {
+        let next: Option<i32> = sqlx::query_scalar(
+            "SELECT x.id FROM sentences x
+             WHERE x.lesson_id = $2 AND x.active
+               AND NOT EXISTS (SELECT 1 FROM progress p WHERE p.user_id = $1 AND p.sentence_id = x.id)
+             ORDER BY x.position LIMIT 1",
+        )
+        .bind(user.id)
+        .bind(lesson_id)
+        .fetch_optional(&state.pool)
+        .await?;
+        next.map(sentence_audio_url)
+    } else {
+        None
+    };
+
     let meanings: Vec<Value> = outcome
         .meanings
         .iter()
@@ -370,6 +387,7 @@ pub async fn check(
         "sentence": { "text": text, "translation": translation },
         "score": outcome.score,
         "lesson_complete": outcome.lesson_complete,
+        "next_audio_url": next_audio_url,
         "meanings": meanings,
     })))
 }
