@@ -10,11 +10,28 @@ use sqlx::FromRow;
 #[derive(Serialize)]
 pub struct Me {
     id: i64,
+    name: String,
+    username: Option<String>,
     lang: String,
+    reminders_on: bool,
     pro: bool,
+    pro_until: Option<chrono::NaiveDate>,
+    review_due: i64,
+    admin_username: Option<String>,
+    pricing: Pricing,
     ads_enabled: bool,
     usage: Usage,
     streak: Streak,
+}
+
+#[derive(Serialize)]
+struct Pricing {
+    month_egp: i64,
+    month_usd: i64,
+    year_egp: i64,
+    year_usd: i64,
+    stars_month: i64,
+    stars_year: i64,
 }
 
 #[derive(Serialize)]
@@ -71,9 +88,42 @@ pub async fn me(State(state): State<AppState>, user: User) -> ApiResult<Me> {
     } else {
         (state.settings.int("ad_unlocks_per_day") - i64::from(ad_unlocks)).max(0)
     };
+    let (name, username, reminders_on): (String, Option<String>, bool) =
+        sqlx::query_as("SELECT name, username, reminders_on FROM users WHERE id = $1")
+            .bind(user.id)
+            .fetch_one(&state.pool)
+            .await?;
+    let pro_until: Option<chrono::NaiveDate> = sqlx::query_scalar(
+        "SELECT max(ends_at)::date FROM subscriptions WHERE user_id = $1 AND ends_at > now()",
+    )
+    .bind(user.id)
+    .fetch_one(&state.pool)
+    .await?;
+    let review_due: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM review_queue rq JOIN sentences s ON s.id = rq.sentence_id
+         WHERE rq.user_id = $1 AND rq.due_on <= $2 AND s.active",
+    )
+    .bind(user.id)
+    .bind(today)
+    .fetch_one(&state.pool)
+    .await?;
     Ok(Json(Me {
         id: user.id,
+        name,
+        username,
         lang: user.lang,
+        reminders_on,
+        pro_until,
+        review_due,
+        admin_username: state.config.admin_username.clone(),
+        pricing: Pricing {
+            month_egp: state.settings.int("price_month_egp"),
+            month_usd: state.settings.int("price_month_usd"),
+            year_egp: state.settings.int("price_year_egp"),
+            year_usd: state.settings.int("price_year_usd"),
+            stars_month: state.settings.int("stars_month"),
+            stars_year: state.settings.int("stars_year"),
+        },
         pro,
         ads_enabled: ads_on(&state),
         usage: Usage {
@@ -170,4 +220,82 @@ pub async fn map(State(state): State<AppState>, user: User) -> ApiResult<Vec<Map
         }
     }
     Ok(Json(result))
+}
+
+#[derive(serde::Deserialize)]
+pub struct SettingsBody {
+    lang: Option<String>,
+    reminders_on: Option<bool>,
+}
+
+/// Language and reminder preferences. Nothing else about a user is editable here.
+pub async fn update_me(
+    State(state): State<AppState>,
+    user: User,
+    Json(body): Json<SettingsBody>,
+) -> Result<axum::http::StatusCode, super::error::ApiError> {
+    if let Some(lang) = &body.lang {
+        if lang != "ar" && lang != "en" {
+            return Err(super::error::ApiError::BadRequest("bad_lang"));
+        }
+        sqlx::query("UPDATE users SET lang = $2 WHERE id = $1")
+            .bind(user.id)
+            .bind(lang)
+            .execute(&state.pool)
+            .await?;
+    }
+    if let Some(on) = body.reminders_on {
+        sqlx::query("UPDATE users SET reminders_on = $2 WHERE id = $1")
+            .bind(user.id)
+            .bind(on)
+            .execute(&state.pool)
+            .await?;
+    }
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+#[derive(Serialize)]
+pub struct Stats {
+    sentences: i64,
+    words_learned: i64,
+    streak: i64,
+    best_streak: i64,
+    /// Share of solved sentences with no mistake and no reveal, 0-100.
+    accuracy: i64,
+}
+
+pub async fn stats(State(state): State<AppState>, user: User) -> ApiResult<Stats> {
+    let sentences: i64 = sqlx::query_scalar("SELECT count(*) FROM progress WHERE user_id = $1")
+        .bind(user.id)
+        .fetch_one(&state.pool)
+        .await?;
+    let words_learned: i64 = sqlx::query_scalar(
+        "SELECT count(DISTINCT sw.word) FROM progress p JOIN sentence_words sw ON sw.sentence_id = p.sentence_id
+         WHERE p.user_id = $1",
+    )
+    .bind(user.id)
+    .fetch_one(&state.pool)
+    .await?;
+    let (solved, clean): (i32, i32) =
+        sqlx::query_as("SELECT stat_solved, stat_clean FROM users WHERE id = $1")
+            .bind(user.id)
+            .fetch_one(&state.pool)
+            .await?;
+    let (streak, best): (i32, i32) =
+        sqlx::query_as("SELECT current, best FROM streaks WHERE user_id = $1")
+            .bind(user.id)
+            .fetch_optional(&state.pool)
+            .await?
+            .unwrap_or((0, 0));
+    Ok(Json(Stats {
+        sentences,
+        words_learned,
+        streak: i64::from(streak),
+        best_streak: i64::from(best),
+        accuracy: if solved == 0 {
+            0
+        } else {
+            (i64::from(clean) * 100 + i64::from(solved) / 2) / i64::from(solved)
+        },
+    }))
 }

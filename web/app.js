@@ -1,22 +1,44 @@
 import { api, ApiError } from './api.js';
 import { loadLanguage, t } from './i18n.js';
-import { h } from './dom.js';
+import { h, toast } from './dom.js';
 import { showExercise } from './exercise.js';
+import { showMap } from './map.js';
+import { showResult } from './result.js';
+import { showLimit } from './limit.js';
+import { showChallenge } from './challenge.js';
+import { showProfile } from './profile.js';
+import { showSettings } from './settings.js';
+import { showPro } from './pro.js';
+import { showWords } from './words.js';
 
 const tg = window.Telegram?.WebApp;
 const root = document.getElementById('app');
+const sessions = new Map();
+
 const ctx = {
   me: null,
   leaveHandlers: [],
   onLeave(fn) { this.leaveHandlers.push(fn); },
   go(hash) { location.hash = hash; },
+  /** Running totals for a lesson, shown on its result screen. */
+  recordSolved(key, score) {
+    const s = sessions.get(key) ?? { score: 0, solved: 0, clean: 0, startedAt: Date.now() };
+    s.score += score.score;
+    s.solved += 1;
+    s.clean += score.accuracy === 1 ? 1 : 0;
+    sessions.set(key, s);
+  },
+  takeSession(key) {
+    const s = sessions.get(key);
+    sessions.delete(key);
+    return s ? { ...s, ms: Date.now() - s.startedAt } : null;
+  },
 };
 
 function applySafeArea() {
-  const inset = { ...(tg?.safeAreaInset ?? {}) };
+  const inset = tg?.safeAreaInset ?? {};
   const content = tg?.contentSafeAreaInset ?? {};
-  const top = (inset.top ?? 0) + (content.top ?? 0);
-  document.documentElement.style.setProperty('--safe-top', `${top}px`);
+  document.documentElement.style.setProperty('--safe-top', `${(inset.top ?? 0) + (content.top ?? 0)}px`);
   document.documentElement.style.setProperty('--safe-bottom', `${inset.bottom ?? 0}px`);
 }
 
@@ -24,21 +46,58 @@ function message(text) {
   root.replaceChildren(h('div', { class: 'center-screen' }, text));
 }
 
+const sources = {
+  lesson: (id) => ({
+    key: `lesson:${id}`,
+    next: () => api('POST', `/api/lessons/${id}/next`),
+    complete: () => ctx.go(`#/result/${id}`),
+  }),
+  review: () => ({
+    key: 'review',
+    next: () => api('POST', '/api/review/next'),
+    complete: (r) => {
+      if (r.none) toast(t('no_reviews'));
+      ctx.go('#/');
+    },
+  }),
+  challenge: () => ({
+    key: 'challenge',
+    next: () => api('POST', '/api/challenge/next'),
+    complete: () => ctx.go('#/challenge'),
+  }),
+};
+
 async function route() {
   ctx.leaveHandlers.splice(0).forEach((fn) => fn());
   const [, name, arg] = location.hash.split('/');
-  if (name === 'lesson' && arg) return showExercise(root, Number(arg), ctx);
-  if (name === 'result') return message(t('lesson_done'));
-  // Temporary entry until the map screen exists: open the first available lesson.
-  const map = await api('GET', '/api/map');
-  const open = map.flatMap((s) => s.lessons).find((l) => l.state === 'open');
-  if (open) location.replace(`#/lesson/${open.id}`);
-  else message(t('lesson_done'));
+  try {
+    if (name === 'lesson' && arg) return await showExercise(root, sources.lesson(Number(arg)), ctx);
+    if (name === 'review') return await showExercise(root, sources.review(), ctx);
+    if (name === 'challenge' && arg === 'play') return await showExercise(root, sources.challenge(), ctx);
+    if (name === 'challenge') return await showChallenge(root, ctx);
+    if (name === 'result' && arg) return await showResult(root, Number(arg), ctx);
+    if (name === 'limit') return await showLimit(root, ctx);
+    if (name === 'profile') return await showProfile(root, ctx);
+    if (name === 'settings') return await showSettings(root, ctx);
+    if (name === 'pro') return await showPro(root, ctx);
+    if (name === 'words') return await showWords(root, ctx);
+    return await showMap(root, ctx);
+  } catch (e) {
+    message(t(e instanceof ApiError && e.status === 401 ? 'error_auth' : 'error_generic'));
+  }
+}
+
+/** Desktop clients get the whole window; phones already open full height. */
+function useFullWindow() {
+  tg?.expand();
+  if (['tdesktop', 'macos', 'weba', 'webk'].includes(tg?.platform)) {
+    try { tg.requestFullscreen?.(); } catch { /* older clients ignore it */ }
+  }
 }
 
 async function start() {
   tg?.ready();
-  tg?.expand();
+  useFullWindow();
   applySafeArea();
   tg?.onEvent?.('safeAreaChanged', applySafeArea);
   tg?.onEvent?.('contentSafeAreaChanged', applySafeArea);
