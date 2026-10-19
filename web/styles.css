@@ -148,3 +148,14 @@ svg.ic.big { width: 28px; height: 28px; }
 .plan.sel { border-color: var(--accent); }
 .benefits .row { font-size: 14px; }
 .card.stack { width: 100%; }
+
+/* Wide windows: the tab bar becomes a side rail at the start edge (right in
+   Arabic, left in English) so it never covers content. Grid columns follow the
+   writing direction, so no per-language rule is needed. */
+@media (min-width: 900px) and (min-height: 600px) {
+  #app:has(> .nav) { display: grid; grid-template-columns: 112px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  #app:has(> .nav) > .top, #app:has(> .nav) > .body { grid-column: 2; }
+  #app > .nav { grid-column: 1; grid-row: 1 / span 2; height: 100%; flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 10px; padding: 20px 8px; }
+  #app > .nav .tab { flex: none; max-width: none; height: 72px; border-radius: 14px; }
+  #app > .nav .tab i { width: 52px; }
+}
