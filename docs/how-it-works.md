@@ -44,6 +44,8 @@ Answers typed faster than a human can type lose the speed bonus and are flagged.
 
 `/start` sends a welcome message with a button that opens the Mini App and buttons to switch the language. The bot also takes Telegram Stars payments and sends reminders. It works through a webhook only.
 
+Admins also get **Owner tools** in the bot: the number of lessons and of missing audio files, buttons that write the lessons and record the audio, and the switch between development mode and open to everyone. In development mode the bot answers admins only, so the owner can prepare everything before launch.
+
 ## Under the hood
 
 One Rust binary, `eng`, serves the bot webhook, the JSON API and the Mini App, and runs the scheduled jobs (league rollover, daily challenge, reminders and cleanup).

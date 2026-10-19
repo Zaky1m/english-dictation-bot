@@ -13,11 +13,9 @@ solution before it is solved or revealed.
 ## Read before you change anything
 
 1. `docs/SPEC.md`: product behaviour. This is the source of truth.
-2. `docs/BUILD-PLAN.md`: the ordered phases and their acceptance criteria.
-3. `docs/OPEN-SOURCE.md`: rules for a public repository.
-4. `docs/DECISIONS.md`: why things are the way they are. Append to it when you
+2. `docs/DECISIONS.md`: why things are the way they are. Append to it when you
    make a non-obvious choice.
-5. `CLAUDE.local.md`, if present: deployment notes for one specific server. It
+3. `CLAUDE.local.md`, if present: deployment notes for one specific server. It
    is never committed.
 
 ## Commands

@@ -211,3 +211,31 @@ Decision:
   larger change.
 - Translations arrive as pull requests, described in `TRANSLATING.md`. A hosted
   tool such as Weblate can come later if many translators join.
+
+## 16. Development mode, owner tools and several ad networks
+
+Context: people who run their own copy on a platform without a terminal still
+need to write the lessons, and should be able to prepare everything before
+anyone else sees the bot.
+
+Decision:
+- The `public_access` setting starts as false. Until an admin turns it on, the
+  bot ignores everyone outside `ADMIN_IDS` (no reply, no user row) and the API
+  refuses them with `not_public`, which sends the Mini App back to the bot chat.
+- Admins get **Owner tools** in the bot: content counts, buttons that start the
+  `lessons` and `audio` content tasks, and the public switch. Each button
+  carries its action in its callback data, so the panel keeps no state.
+- A restart records running content tasks as interrupted and starts them again,
+  so a days-long audio run on the free Gemini tier continues by itself. Admins
+  get a bot message when a task ends.
+- Rewarded ads can come from Adsgram, Monetag, Adexium, Telega.io and GigaPub.
+  The Mini App tries the configured networks in the order of the
+  `ad_provider_order` setting and moves on when one has no ad.
+- Only Adsgram confirms a watched ad server to server. The others confirm it
+  inside the Mini App, which then reports it to `/api/ads/client-reward`. That
+  report cannot be verified, so it gets a daily cap per learner
+  (`client_ad_credits_per_day`) on top of the usual limits on open credits.
+  Either way the reward is the same ad credit, spent atomically.
+- PostgreSQL stays the only database. Every platform considered offers it, and a
+  second database would double the data layer and weaken the transactional
+  guarantees that payments rely on.

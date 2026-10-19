@@ -37,4 +37,5 @@ The manual option appears only when `ADMIN_USERNAME` is set. The defaults show p
 - Prices, limits and the number of streak freezes are in the `settings` table and change from the admin panel without a restart
 - Every payment is recorded once by its Telegram charge id, so a repeated update never grants Pro twice
 - Revoking Pro in the admin panel ends every active period at once, including extensions that start in the future
-- Rewarded ads need both `ADSGRAM_BLOCK_ID` and the `ads_enabled` setting. Without them, reveals stay free for everyone
+- Rewarded ads can come from Adsgram, Monetag, Adexium, Telega.io and GigaPub. Set the ids of the networks you use and turn on the `ads_enabled` setting. The app tries the networks in the order of the `ad_provider_order` setting until one has an ad. Without any network, reveals stay free for everyone
+- Adsgram confirms a watched ad to the server directly. The other networks confirm it only inside the app, so their rewards are capped per learner per day by the `client_ad_credits_per_day` setting
