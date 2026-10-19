@@ -1,3 +1,4 @@
+mod access;
 mod ads;
 mod api_admin;
 mod api_ads;
@@ -24,6 +25,8 @@ use tower_http::services::ServeDir;
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 
+pub use access::is_open_to;
+
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
@@ -39,6 +42,7 @@ pub fn router(state: AppState) -> Router {
     let audio = ServeDir::new(state.config.data_dir.join("audio"));
     let web_dir = state.config.web_dir.clone();
     let api = Router::new()
+        .route("/bot-link", get(access::bot_link))
         .route("/me", get(api_profile::me).patch(api_profile::update_me))
         .route("/stats", get(api_profile::stats))
         .route("/stats/pro", get(api_league::pro_stats))
@@ -95,6 +99,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/admin/jobs", get(api_admin::jobs))
         .route("/ads/claim", post(api_ads::claim))
+        .route("/ads/client-reward", post(api_ads::client_reward))
         .route("/adsgram/reward/{secret}", get(api_ads::reward));
     Router::new()
         .route("/health", get(health))
@@ -133,6 +138,9 @@ mod admin_tests;
 
 #[cfg(test)]
 mod ads_tests;
+
+#[cfg(test)]
+mod owner_tests;
 
 #[cfg(test)]
 mod engagement_tests;

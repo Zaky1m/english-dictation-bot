@@ -26,6 +26,9 @@ impl FromRequestParts<AppState> for User {
             tracing::warn!(reason = %e, "rejected initData");
             ApiError::Unauthorized
         })?;
+        if !super::is_open_to(state, tg.id) {
+            return Err(ApiError::Forbidden("not_public"));
+        }
         let profile =
             crate::users::upsert(&state.pool, tg.id, &tg.name, tg.username.as_deref()).await?;
         if profile.blocked {

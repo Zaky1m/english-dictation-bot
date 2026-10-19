@@ -27,3 +27,30 @@ challenge_post = """⌯ ملخص تحدي اليوم
 • المشاركين ↢ {participants}
 • أصعب كلمة ↢ <code>{word}</code>
 {top}"""
+owner_tools = "أدوات المالك"
+owner_status = """⌯ أدوات المالك
+• الوضع ↢ {mode}
+• المواقف ↢ {situations}
+• الجمل ↢ {sentences}
+• جمل بدون صوت ↢ {sentence_audio}
+• كلمات بدون صوت ↢ {word_audio}
+• المهمة ↢ {job}"""
+mode_dev = "تطوير، للأدمن فقط"
+mode_public = "مفتوح للجميع"
+job_idle = "لا توجد مهمة"
+job_running = "{kind} جارٍ الآن"
+kind_lessons = "كتابة الدروس"
+kind_audio = "تسجيل الصوت"
+kind_generate = "كتابة موقف جديد"
+gen_lessons = "اكتب الدروس"
+gen_audio = "سجّل الصوت"
+refresh = "تحديث"
+go_public = "افتح للجميع"
+go_private = "ارجع لوضع التطوير"
+no_gemini = """⌯ لا توجد مفاتيح Gemini
+• أضف GEMINI_API_KEY_1 وأعد تشغيل التطبيق"""
+job_done = """⌯ انتهت مهمة المحتوى
+• افتح أدوات المالك لرؤية الأعداد"""
+job_failed = """⌯ توقفت مهمة المحتوى
+• السبب ↢ <code>{detail}</code>
+• ابدأها من جديد من أدوات المالك"""

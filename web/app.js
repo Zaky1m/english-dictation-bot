@@ -1,4 +1,4 @@
-import { api, ApiError } from './api.js';
+import { api, ApiError, leaveIfNotPublic } from './api.js';
 import { loadLanguage, t } from './i18n.js';
 import { h, toast } from './dom.js';
 import { showExercise } from './exercise.js';
@@ -107,6 +107,7 @@ async function start() {
   try {
     ctx.me = await api('GET', '/api/me');
   } catch (e) {
+    if (await leaveIfNotPublic(e)) return;
     await loadLanguage(tg?.initDataUnsafe?.user?.language_code);
     return message(t(e instanceof ApiError && e.status === 401 ? 'error_auth' : 'error_generic'));
   }

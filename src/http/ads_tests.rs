@@ -35,7 +35,10 @@ async fn ad_credits_unlock_reveals_and_extra_sentences() {
     // The profile tells the client ads are on and which block to show.
     let (_, me) = client.call("GET", "/api/me", None).await;
     assert_eq!(me["ads_enabled"], true);
-    assert_eq!(me["adsgram_block_id"], "123");
+    assert_eq!(
+        me["ad_providers"],
+        json!([{ "name": "adsgram", "block_id": "123" }])
+    );
     assert_eq!(me["usage"]["ad_unlocks_left"], 1);
 
     // Reveal needs a credit.

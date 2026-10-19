@@ -43,6 +43,11 @@ pub async fn test_pool() -> Option<(PgPool, String)> {
         .await
         .ok()?;
     migrate(&pool).await.ok()?;
+    // Most tests act as ordinary learners; the development-mode tests switch it back.
+    sqlx::query("UPDATE settings SET value = 'true' WHERE key = 'public_access'")
+        .execute(&pool)
+        .await
+        .ok()?;
     Some((pool, schema))
 }
 

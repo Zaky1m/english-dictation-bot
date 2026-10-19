@@ -124,7 +124,7 @@ async fn serve() -> anyhow::Result<()> {
         texts: std::sync::Arc::new(telegram::Texts::load()?),
         gemini,
     };
-    content::runner::mark_interrupted(&state.pool).await?;
+    content::runner::resume_interrupted(&state).await?;
     let jobs = jobs::spawn(state.clone());
     let served = axum::serve(listener, http::router(state))
         .with_graceful_shutdown(shutdown_signal())

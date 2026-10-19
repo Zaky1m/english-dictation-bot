@@ -12,7 +12,7 @@ export async function showLimit(root, ctx) {
     const button = event.currentTarget;
     button.disabled = true;
     try {
-      if (!(await showAd(me.adsgram_block_id))) return toast(t('ad_failed'));
+      if (!(await showAd(me.ad_providers))) return toast(t('ad_failed'));
       await claimExtra();
       toast(t('ad_unlocked'));
       ctx.go('#/');
