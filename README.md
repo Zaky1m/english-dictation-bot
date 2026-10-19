@@ -32,6 +32,8 @@ Free learners get 10 sentences a day. Pro raises that to 50 and adds free word r
 
 The app is one Rust service with a PostgreSQL database, packaged as a Docker image. It needs a Telegram bot token, Gemini API keys to generate the lessons and their audio, and a public HTTPS address, either a domain of your own or the free address of your hosting platform.
 
+A new install starts in development mode, where only the owner can use it. The owner writes the lessons and records the audio from the bot itself, with no terminal needed, and opens the app to everyone when it is ready. Rewarded ads can come from Adsgram, Monetag, Adexium, Telega.io and GigaPub, alone or together.
+
 [The deployment guide](docs/deploy.md) covers a VPS with Docker, Railway, and other platforms such as Render and Fly.io. For a quick look on your own machine:
 
 ```bash

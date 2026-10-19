@@ -9,6 +9,7 @@ You need:
 - A Telegram bot token from [BotFather](https://t.me/BotFather)
 - Gemini API keys from [Google AI Studio](https://aistudio.google.com/apikey) to generate the lessons and their audio
 - Three random secrets for `WEBHOOK_PATH`, `WEBHOOK_SECRET` and `ADSGRAM_REWARD_SECRET`
+- Your own Telegram user id for `ADMIN_IDS`. Any user-info bot, such as [@userinfobot](https://t.me/userinfobot), shows it
 
 ```bash
 openssl rand -hex 24              # run once per secret
@@ -23,16 +24,28 @@ Telegram opens Mini Apps and sends webhooks over HTTPS only, so the app needs a 
 
 On every start the app registers the webhook and the bot's menu button with that address, so changing the domain only needs a new `PUBLIC_URL` and a restart.
 
+### Development mode
+
+A new install starts in development mode. Only the admins listed in `ADMIN_IDS` get answers: the bot ignores everyone else, and the Mini App sends them straight back to the bot chat. This leaves time to write the lessons and try everything before anyone else sees it. Set `ADMIN_IDS` before the first start, or nobody can use the bot.
+
 ### Lessons and audio
 
-The repository ships without lessons. After the first start, generate them once from inside the running app:
+The repository ships without lessons, and the owner writes them from the bot, with no terminal needed:
+
+1. Send `/start` to the bot and tap **Owner tools**
+2. Tap **Write lessons**. The app writes every situation with Gemini and then records the audio
+3. A message arrives when the task ends. **Refresh** shows the counts at any time, and **Record audio** fills in any audio still missing
+
+A task carries on by itself after a restart. The free Gemini tier allows a limited number of speech requests per key per day, so the audio can take several days with few keys. More keys, or one key with billing enabled, shorten that.
+
+When everything looks right, tap **Open to everyone** in the same panel. **Back to development** closes it again.
+
+On a server with a terminal the same work can run from the command line:
 
 ```bash
 eng content generate --all        # sentences, translations and word meanings
 eng content audio                 # audio for every sentence and every word
 ```
-
-Both commands resume where they stopped, so they can be run again after an interruption. The free Gemini tier allows a limited number of speech requests per key per day, so audio can take several days with few keys. More keys, or one key with billing enabled, shorten that.
 
 ## Environment variables
 
@@ -45,13 +58,18 @@ Both commands resume where they stopped, so they can be run again after an inter
 | `DATABASE_URL` | PostgreSQL connection string |
 | `BIND_ADDR` | Address to listen on. When empty, the app uses `0.0.0.0:$PORT` |
 | `WEBHOOK_PATH`, `WEBHOOK_SECRET` | Webhook path segment and secret header |
-| `ADSGRAM_REWARD_SECRET`, `ADSGRAM_BLOCK_ID` | Rewarded ads, off while the block id is empty |
-| `ADMIN_IDS`, `ADMIN_USERNAME` | Admin Telegram ids, and the contact for manual payments |
+| `ADMIN_IDS` | Telegram ids of the admins, who are also the only users in development mode |
+| `ADMIN_USERNAME` | Contact shown for manual payments |
+| `ADSGRAM_BLOCK_ID`, `ADSGRAM_REWARD_SECRET` | Adsgram rewarded ads and its reward callback |
+| `MONETAG_ZONE_ID` | Monetag rewarded ads |
+| `ADEXIUM_WIDGET_ID` | Adexium rewarded ads |
+| `TELEGA_TOKEN`, `TELEGA_AD_BLOCK_UUID` | Telega.io rewarded ads |
+| `GIGAPUB_PROJECT_ID` | GigaPub rewarded ads |
 | `CHALLENGE_CHANNEL_ID` | Channel that receives the daily challenge summary |
 | `DATA_DIR`, `WEB_DIR` | Audio directory and Mini App directory |
 | `GEMINI_API_KEY_<n>` | Gemini keys, used in turn |
 
-Limits, prices and scoring rules are not environment variables. They live in the database and change from the admin panel without a restart.
+Every ad network is optional, and any mix of them works. Limits, prices, scoring rules and the order in which ad networks are tried are not environment variables. They live in the database and change from the admin panel without a restart.
 
 ## Option 1: a VPS with Docker
 
@@ -83,7 +101,7 @@ learn.example.com {
 
 nginx with certbot works the same way, proxying the domain to `127.0.0.1:4510`.
 
-5. Generate the lessons
+5. Write the lessons from **Owner tools** in the bot, or from the terminal:
 
 ```bash
 docker compose run --rm app eng content generate --all
@@ -101,18 +119,11 @@ git pull && docker compose up -d --build
 1. Fork the repository on GitHub
 2. In [Railway](https://railway.com), create a project from the forked repository. Railway builds it with the included `Dockerfile`
 3. Add a PostgreSQL database to the project, then set `DATABASE_URL` on the app service to `${{Postgres.DATABASE_URL}}`
-4. Add the other variables from `.env.example` to the app service. Leave `BIND_ADDR` out, because the app listens on the `PORT` that Railway provides
+4. Add the other variables from `.env.example` to the app service, including your id in `ADMIN_IDS`. Leave `BIND_ADDR` out, because the app listens on the `PORT` that Railway provides
 5. Attach a volume to the app service at `/app/data`, where the audio files live. The image runs as a non-root user, so also set `RAILWAY_RUN_UID=0` to let it write to the volume
 6. Under Settings, then Networking, generate a domain or add your own. For your own domain, create the `CNAME` record that Railway shows at your DNS provider
 7. Set `PUBLIC_URL` to that address and redeploy
-8. Generate the lessons with the [Railway CLI](https://docs.railway.com/guides/cli):
-
-```bash
-railway ssh -- eng content generate --all
-railway ssh --session             # then run: eng content audio
-```
-
-The `--session` option keeps the long audio job running if the connection drops.
+8. Write the lessons from **Owner tools** in the bot, as described in [Lessons and audio](#lessons-and-audio)
 
 ## Other platforms
 
@@ -125,13 +136,13 @@ The same image runs on any platform that builds a Dockerfile and offers PostgreS
 | Storage | A persistent disk or volume mounted at `/app/data` |
 | Port | Leave `BIND_ADDR` unset. The app uses the platform's `PORT`, or 4510 by default |
 | Address | The platform's HTTPS address or your own domain, written into `PUBLIC_URL` |
-| Lessons | Run the two `eng content` commands from the platform's shell once |
+| Lessons | From **Owner tools** in the bot |
 
-On [Render](https://render.com) that is a Docker web service with a persistent disk and the Shell tab. On [Fly.io](https://fly.io) it is `fly launch`, a volume from `fly volumes create`, and `fly ssh console` for the commands.
+On [Render](https://render.com) that is a Docker web service with a persistent disk. On [Fly.io](https://fly.io) it is `fly launch` with a volume from `fly volumes create`.
 
 ## After the first start
 
-- Open the bot in Telegram and send `/start`. The menu button and the welcome button open the Mini App
-- Put your Telegram user id in `ADMIN_IDS` to see the admin panel button
-- Set `ADMIN_USERNAME` to offer manual payments, `CHALLENGE_CHANNEL_ID` to post the daily challenge summary, and `ADSGRAM_BLOCK_ID` for rewarded ads
+- Open the bot in Telegram and send `/start`. The menu button and the welcome button open the Mini App, and admins also see the admin panel and **Owner tools**
+- Write the lessons, try the app, then open it to everyone from **Owner tools**
+- Set `ADMIN_USERNAME` to offer manual payments, `CHALLENGE_CHANNEL_ID` to post the daily challenge summary, and the ids of any ad networks you use
 - Back up the PostgreSQL database. The audio can be generated again, but users and payments cannot
