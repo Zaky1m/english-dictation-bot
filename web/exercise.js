@@ -204,7 +204,7 @@ export async function showExercise(root, source, ctx) {
         } catch (e) {
           // Free users watch an ad, then the reveal is retried until the reward lands.
           if (!(e instanceof ApiError) || e.code !== 'ad_required') throw e;
-          if (!(await showAd(ctx.me.adsgram_block_id))) return toast(t('ad_failed'));
+          if (!(await showAd(ctx.me.ad_providers))) return toast(t('ad_failed'));
           data = await withCredit(request);
         }
         words[target] = data.letters;

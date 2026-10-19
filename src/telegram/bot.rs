@@ -17,6 +17,7 @@ pub enum BotError {
 pub struct Bot {
     http: reqwest::Client,
     base: String,
+    username: tokio::sync::OnceCell<String>,
 }
 
 impl Bot {
@@ -26,7 +27,23 @@ impl Bot {
                 .timeout(Duration::from_secs(30))
                 .build()?,
             base: format!("{}/bot{token}", api_origin.trim_end_matches('/')),
+            username: tokio::sync::OnceCell::new(),
         })
+    }
+
+    /// The bot's @username from `getMe`, fetched once and then cached.
+    pub async fn username(&self) -> Option<String> {
+        self.username
+            .get_or_try_init(|| async {
+                let me = self.call("getMe", &json!({})).await?;
+                me["username"]
+                    .as_str()
+                    .map(str::to_owned)
+                    .ok_or_else(|| BotError::Transport("getMe has no username".into()))
+            })
+            .await
+            .ok()
+            .cloned()
     }
 
     pub async fn call(&self, method: &str, body: &impl Serialize) -> Result<Value, BotError> {

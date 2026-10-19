@@ -245,12 +245,7 @@ pub async fn save_setting(
     if !same_kind(&old, &body.value) {
         return Err(ApiError::BadRequest("wrong_type"));
     }
-    sqlx::query("UPDATE settings SET value = $2, updated_at = now() WHERE key = $1")
-        .bind(&key)
-        .bind(&body.value)
-        .execute(&state.pool)
-        .await?;
-    state.settings.reload(&state.pool).await?;
+    state.settings.save(&state.pool, &key, &body.value).await?;
     tracing::info!(admin = admin.id, key, "setting changed");
     Ok(StatusCode::NO_CONTENT)
 }

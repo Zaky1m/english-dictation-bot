@@ -1,5 +1,5 @@
 use super::AppState;
-use super::ads::consume_credit;
+use super::ads::{add_credit, consume_credit, providers};
 use super::api_profile::ads_on;
 use super::error::ApiError;
 use super::user::{User, is_pro};
@@ -10,10 +10,6 @@ use axum::http::StatusCode;
 use chrono::Utc;
 use serde::Deserialize;
 use serde_json::{Value, json};
-
-/// Unclaimed credits a user may hold at once, and the minimum gap between two.
-const MAX_OPEN_CREDITS: i64 = 3;
-const MIN_GAP_SECS: i32 = 20;
 
 #[derive(Deserialize)]
 pub struct RewardQuery {
@@ -33,22 +29,9 @@ pub async fn reward(
     if !ads_on(&state) {
         return Ok(StatusCode::OK);
     }
-    let added = sqlx::query(
-        "INSERT INTO ad_credits (user_id)
-         SELECT $1 WHERE EXISTS (SELECT 1 FROM users WHERE id = $1)
-           AND (SELECT count(*) FROM ad_credits WHERE user_id = $1 AND claimed_at IS NULL
-                  AND created_at > now() - make_interval(mins => $2)) < $3
-           AND NOT EXISTS (SELECT 1 FROM ad_credits WHERE user_id = $1
-                  AND created_at > now() - make_interval(secs => $4))",
-    )
-    .bind(query.userid)
-    .bind(state.settings.int("ad_credit_ttl_minutes") as i32)
-    .bind(MAX_OPEN_CREDITS)
-    .bind(MIN_GAP_SECS)
-    .execute(&state.pool)
-    .await?
-    .rows_affected();
-    if added == 0 {
+    let mut conn = state.pool.acquire().await?;
+    let ttl = state.settings.int("ad_credit_ttl_minutes");
+    if !add_credit(&mut conn, query.userid, ttl).await? {
         return Err(ApiError::TooManyRequests);
     }
     Ok(StatusCode::OK)
@@ -109,4 +92,61 @@ pub async fn claim(
     Ok(Json(
         json!({ "extra": state.settings.int("ad_extra_sentences") }),
     ))
+}
+
+#[derive(Deserialize)]
+pub struct ClientRewardBody {
+    provider: String,
+}
+
+/// Networks other than Adsgram report a watched ad only to the Mini App, so the
+/// app reports it here. That cannot be verified, hence the daily cap on top of
+/// the usual limits on open credits.
+pub async fn client_reward(
+    State(state): State<AppState>,
+    user: User,
+    Json(body): Json<ClientRewardBody>,
+) -> Result<StatusCode, ApiError> {
+    let known = providers(&state)
+        .iter()
+        .any(|p| p["name"] == body.provider.as_str());
+    if body.provider == "adsgram" || !known {
+        return Err(ApiError::BadRequest("bad_provider"));
+    }
+    if !ads_on(&state) || is_pro(&state.pool, user.id).await? {
+        return Err(ApiError::Forbidden("not_available"));
+    }
+    let today = cairo::date(Utc::now());
+    let mut tx = state.pool.begin().await?;
+    sqlx::query("SELECT pg_advisory_xact_lock($1)")
+        .bind(user.id)
+        .execute(&mut *tx)
+        .await?;
+    let used: i32 = sqlx::query_scalar("SELECT COALESCE((SELECT client_ad_credits FROM daily_usage WHERE user_id = $1 AND cairo_date = $2), 0)")
+        .bind(user.id)
+        .bind(today)
+        .fetch_one(&mut *tx)
+        .await?;
+    if i64::from(used) >= state.settings.int("client_ad_credits_per_day") {
+        return Err(ApiError::Forbidden("daily_ad_limit"));
+    }
+    if !add_credit(
+        &mut tx,
+        user.id,
+        state.settings.int("ad_credit_ttl_minutes"),
+    )
+    .await?
+    {
+        return Err(ApiError::TooManyRequests);
+    }
+    sqlx::query(
+        "INSERT INTO daily_usage (user_id, cairo_date, started, client_ad_credits) VALUES ($1, $2, 0, 1)
+         ON CONFLICT (user_id, cairo_date) DO UPDATE SET client_ad_credits = daily_usage.client_ad_credits + 1",
+    )
+    .bind(user.id)
+    .bind(today)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
 }

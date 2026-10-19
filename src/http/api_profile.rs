@@ -5,6 +5,7 @@ use crate::cairo;
 use axum::Json;
 use axum::extract::State;
 use serde::Serialize;
+use serde_json::Value;
 use sqlx::FromRow;
 
 #[derive(Serialize)]
@@ -20,7 +21,7 @@ pub struct Me {
     admin_username: Option<String>,
     pricing: Pricing,
     ads_enabled: bool,
-    adsgram_block_id: Option<String>,
+    ad_providers: Vec<Value>,
     usage: Usage,
     streak: Streak,
 }
@@ -59,7 +60,7 @@ pub fn daily_base_limit(state: &AppState, pro: bool) -> i64 {
 
 /// Ads show only when switched on and an Adsgram block is configured.
 pub fn ads_on(state: &AppState) -> bool {
-    state.settings.bool("ads_enabled") && state.config.adsgram_block_id.is_some()
+    state.settings.bool("ads_enabled") && !super::ads::providers(state).is_empty()
 }
 
 pub async fn me(State(state): State<AppState>, user: User) -> ApiResult<Me> {
@@ -127,9 +128,11 @@ pub async fn me(State(state): State<AppState>, user: User) -> ApiResult<Me> {
         },
         pro,
         ads_enabled: ads_on(&state),
-        adsgram_block_id: ads_on(&state)
-            .then(|| state.config.adsgram_block_id.clone())
-            .flatten(),
+        ad_providers: if ads_on(&state) {
+            super::ads::providers(&state)
+        } else {
+            Vec::new()
+        },
         usage: Usage {
             started: i64::from(started),
             limit: daily_base_limit(&state, pro) + bonus,

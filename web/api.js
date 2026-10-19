@@ -24,3 +24,16 @@ export async function api(method, path, body, signal) {
   if (!res.ok) throw new ApiError(res.status, data.error ?? 'error');
   return data;
 }
+
+/** Development mode turns everyone but the admins away: back to the bot chat, silently. */
+export async function leaveIfNotPublic(error) {
+  if (!(error instanceof ApiError) || error.code !== 'not_public') return false;
+  try {
+    const { url } = await (await fetch('/api/bot-link')).json();
+    if (url) tg?.openTelegramLink?.(url);
+  } catch {
+    // Closing alone still returns the user to Telegram.
+  }
+  tg?.close?.();
+  return true;
+}

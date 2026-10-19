@@ -27,3 +27,30 @@ challenge_post = """⌯ Daily challenge summary
 • Participants ↣ {participants}
 • Hardest word ↣ <code>{word}</code>
 {top}"""
+owner_tools = "Owner tools"
+owner_status = """⌯ Owner tools
+• Mode ↣ {mode}
+• Situations ↣ {situations}
+• Sentences ↣ {sentences}
+• Sentences without audio ↣ {sentence_audio}
+• Words without audio ↣ {word_audio}
+• Task ↣ {job}"""
+mode_dev = "Development, only admins"
+mode_public = "Open to everyone"
+job_idle = "None running"
+job_running = "{kind} in progress"
+kind_lessons = "Writing lessons"
+kind_audio = "Recording audio"
+kind_generate = "Writing a new situation"
+gen_lessons = "Write lessons"
+gen_audio = "Record audio"
+refresh = "Refresh"
+go_public = "Open to everyone"
+go_private = "Back to development"
+no_gemini = """⌯ No Gemini keys
+• Add GEMINI_API_KEY_1 and restart the app"""
+job_done = """⌯ Content task finished
+• Open owner tools to see the counts"""
+job_failed = """⌯ Content task stopped
+• Reason ↣ <code>{detail}</code>
+• Start it again from owner tools"""

@@ -64,6 +64,27 @@ impl Settings {
         self.get(key).and_then(|v| v.as_bool()).unwrap_or(false)
     }
 
+    pub fn text_list(&self, key: &str) -> Vec<String> {
+        self.get(key)
+            .and_then(|v| v.as_array().cloned())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Writes one setting and refreshes the cache so the change applies at once.
+    pub async fn save(&self, pool: &PgPool, key: &str, value: &Value) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE settings SET value = $2, updated_at = now() WHERE key = $1")
+            .bind(key)
+            .bind(value)
+            .execute(pool)
+            .await?;
+        self.reload(pool).await
+    }
+
     pub fn int_list(&self, key: &str) -> Vec<i64> {
         self.get(key)
             .and_then(|v| v.as_array().cloned())

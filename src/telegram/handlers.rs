@@ -8,6 +8,16 @@ use chrono::Utc;
 /// Handles one update inline. Errors bubble up so the webhook answers 500 and
 /// Telegram retries; a blocked user is not an error.
 pub async fn handle(state: &AppState, update: Update) -> anyhow::Result<()> {
+    let sender = update
+        .message
+        .as_ref()
+        .and_then(|m| m.from.as_ref().map(|f| f.id))
+        .or(update.callback_query.as_ref().map(|q| q.from.id))
+        .or(update.pre_checkout_query.as_ref().map(|q| q.from.id));
+    // In development mode everyone but the admins gets silence.
+    if sender.is_some_and(|id| !crate::http::is_open_to(state, id)) {
+        return Ok(());
+    }
     let result = if let Some(message) = update.message {
         on_message(state, message).await
     } else if let Some(query) = update.callback_query {
@@ -91,11 +101,14 @@ fn welcome_keyboard(state: &AppState, user_id: i64, lang: &str) -> serde_json::V
         rows.push(row.to_vec());
     }
     if state.config.admin_ids.contains(&user_id) {
-        rows.push(vec![web_app_button(
-            &t.render(lang, "open_admin", &[]),
-            &format!("{url}/admin"),
-            "danger",
-        )]);
+        rows.push(vec![
+            web_app_button(
+                &t.render(lang, "open_admin", &[]),
+                &format!("{url}/admin"),
+                "danger",
+            ),
+            callback_button(&t.render(lang, "owner_tools", &[]), "own:status", "danger"),
+        ]);
     }
     keyboard(rows)
 }
@@ -148,6 +161,18 @@ async fn on_callback(state: &AppState, query: CallbackQuery) -> Result<(), Handl
                     Some(welcome_keyboard(state, sender.id, lang)),
                 )
                 .await?;
+        }
+        _ if data.starts_with("own:") => {
+            if state.config.admin_ids.contains(&sender.id) {
+                on_owner_action(
+                    state,
+                    &data[4..],
+                    &profile.lang,
+                    message.chat.id,
+                    message.message_id,
+                )
+                .await?;
+            }
         }
         "rem:off" => {
             sqlx::query("UPDATE users SET reminders_on = false WHERE id = $1")
@@ -233,4 +258,109 @@ async fn on_payment(
 /// Used by the invoice endpoint so the payload format lives in one place.
 pub fn payload_for(plan: Plan, user_id: i64) -> String {
     invoice_payload(plan, user_id)
+}
+
+/// Owner tools: content counts, content tasks and the development-mode switch.
+/// Every button carries its action, so the panel needs no stored state.
+async fn on_owner_action(
+    state: &AppState,
+    action: &str,
+    lang: &str,
+    chat_id: i64,
+    message_id: i64,
+) -> Result<(), HandlerError> {
+    use crate::content::runner::{self, Kind, StartError};
+    let kind = match action {
+        "lessons" => Some(Kind::Lessons),
+        "audio" => Some(Kind::Audio(None)),
+        _ => None,
+    };
+    if let Some(kind) = kind
+        && let Err(StartError::NoGemini) = runner::start(state, kind).await
+    {
+        let text = state.texts.render(lang, "no_gemini", &[]);
+        state.bot.send_message(chat_id, &text, None).await?;
+    }
+    if let Some(open) = match action {
+        "public" => Some(true),
+        "private" => Some(false),
+        _ => None,
+    } {
+        state
+            .settings
+            .save(&state.pool, "public_access", &serde_json::Value::Bool(open))
+            .await?;
+        tracing::info!(open, "public access changed from the bot");
+    }
+    let (text, buttons) = owner_panel(state, lang).await?;
+    match state
+        .bot
+        .edit_message(chat_id, message_id, &text, Some(buttons.clone()))
+        .await
+    {
+        // Refreshing an unchanged panel is refused by Telegram; send it anew instead.
+        Err(BotError::Api { .. }) if action != "status" => {
+            state
+                .bot
+                .send_message(chat_id, &text, Some(buttons))
+                .await?;
+        }
+        Err(BotError::Api { .. }) => {}
+        other => other?,
+    }
+    Ok(())
+}
+
+async fn owner_panel(
+    state: &AppState,
+    lang: &str,
+) -> Result<(String, serde_json::Value), HandlerError> {
+    let t = &state.texts;
+    let p = crate::content::runner::progress(&state.pool).await?;
+    let public = state.settings.bool("public_access");
+    let job = match p.running.as_deref() {
+        Some(kind) => {
+            let name = t.render(lang, &format!("kind_{kind}"), &[]);
+            t.render(lang, "job_running", &[("kind", &name)])
+        }
+        None => t.render(lang, "job_idle", &[]),
+    };
+    let mode = t.render(lang, if public { "mode_public" } else { "mode_dev" }, &[]);
+    let text = t.render_with(
+        lang,
+        "owner_status",
+        &[
+            ("situations", &p.situations.to_string()),
+            ("sentences", &p.sentences.to_string()),
+            ("sentence_audio", &p.sentence_audio_missing.to_string()),
+            ("word_audio", &p.word_audio_missing.to_string()),
+        ],
+        &[("mode", &mode), ("job", &job)],
+    );
+    let text = match p.last_failure {
+        Some(detail) if p.running.is_none() => {
+            format!(
+                "{text}\n\n{}",
+                t.render(lang, "job_failed", &[("detail", &detail)])
+            )
+        }
+        _ => text,
+    };
+    let button = |key: &str, action: &str, style: &str| {
+        callback_button(&t.render(lang, key, &[]), &format!("own:{action}"), style)
+    };
+    let switch = if public {
+        button("go_private", "private", "danger")
+    } else {
+        button("go_public", "public", "success")
+    };
+    let rows = vec![
+        vec![
+            button("gen_lessons", "lessons", "primary"),
+            button("gen_audio", "audio", "primary"),
+        ],
+        vec![button("refresh", "status", "success")],
+        vec![switch],
+    ];
+    Ok((text, keyboard(rows)))
 }
