@@ -33,6 +33,10 @@ pub struct Config {
     pub data_dir: PathBuf,
     pub web_dir: PathBuf,
     pub gemini_keys: Vec<String>,
+    /// Set together with `elevenlabs_voice_id` to record audio with ElevenLabs.
+    pub elevenlabs_api_key: Option<String>,
+    pub elevenlabs_voice_id: Option<String>,
+    pub elevenlabs_model_id: Option<String>,
 }
 
 impl Config {
@@ -99,6 +103,9 @@ impl Config {
             data_dir: get("DATA_DIR").unwrap_or_else(|| "data".into()).into(),
             web_dir: get("WEB_DIR").unwrap_or_else(|| "web".into()).into(),
             gemini_keys: gemini_keys(&vars),
+            elevenlabs_api_key: get("ELEVENLABS_API_KEY"),
+            elevenlabs_voice_id: get("ELEVENLABS_VOICE_ID"),
+            elevenlabs_model_id: get("ELEVENLABS_MODEL_ID"),
         })
     }
 }

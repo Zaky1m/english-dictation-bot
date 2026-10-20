@@ -47,8 +47,10 @@ gen_audio = "Record audio"
 refresh = "Refresh"
 go_public = "Open to everyone"
 go_private = "Back to development"
-no_gemini = """⌯ No Gemini keys
-• Add GEMINI_API_KEY_1 and restart the app"""
+no_gemini = """⌯ No AI keys for this task
+• Lessons need GEMINI_API_KEY_1
+• Audio needs Gemini or ElevenLabs keys
+• Add them and restart the app"""
 job_done = """⌯ Content task finished
 • Open owner tools to see the counts"""
 job_failed = """⌯ Content task stopped

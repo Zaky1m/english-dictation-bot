@@ -66,6 +66,9 @@ enum ContentCommand {
         /// Clean start and end artifacts from existing files instead of generating
         #[arg(long)]
         repair: bool,
+        /// Only mark MP3 files already placed in DATA_DIR/audio as ready, without recording
+        #[arg(long)]
+        adopt: bool,
     },
     /// Write one sample MP3 per candidate voice
     Voices {
@@ -166,7 +169,16 @@ async fn content_command(command: ContentCommand) -> anyhow::Result<()> {
             );
             content::generate::run(&pool, gemini, situation.map(|s| vec![s])).await
         }
-        ContentCommand::Audio { .. } => content::audio::run(&pool, gemini, &config.data_dir).await,
+        ContentCommand::Audio { adopt: true, .. } => {
+            let adopted = content::audio::adopt_existing(&pool, &config.data_dir).await?;
+            println!("{adopted} audio files marked as ready");
+            Ok(())
+        }
+        ContentCommand::Audio { .. } => {
+            let speaker = content::speaker::Speaker::choose(&config, Some(gemini))?
+                .context("no voice configured")?;
+            content::audio::run(&pool, std::sync::Arc::new(speaker), &config.data_dir).await
+        }
         ContentCommand::Voices { .. } => unreachable!("handled above"),
     }
 }

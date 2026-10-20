@@ -239,3 +239,16 @@ Decision:
 - PostgreSQL stays the only database. Every platform considered offers it, and a
   second database would double the data layer and weaken the transactional
   guarantees that payments rely on.
+
+## 17. Audio from ElevenLabs or from files
+
+Context: the free Gemini speech quota makes a full recording take days, and
+some operators prefer another voice or their own recordings.
+
+Decision:
+- A `Speaker` picks ElevenLabs when both its key and voice id are set, and
+  Gemini otherwise. Lessons are still written with Gemini.
+- Every audio pass first adopts MP3 files already on disk at the expected paths,
+  so hand-made or externally recorded files are never recorded again.
+- The audio task no longer stops at the first quota wall. A pass that records
+  nothing waits 30 minutes; the task gives up only after 72 idle passes.

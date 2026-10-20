@@ -38,6 +38,16 @@ The repository ships without lessons, and the owner writes them from the bot, wi
 
 A task carries on by itself after a restart. The free Gemini tier allows a limited number of speech requests per key per day, so the audio can take several days with few keys. More keys, or one key with billing enabled, shorten that.
 
+### Choosing the voice
+
+Lessons are always written with Gemini. The audio can come from three places:
+
+- **Gemini**, the default, using the same keys
+- **ElevenLabs**, when `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are set. Pick a voice in the ElevenLabs voice library and copy its id. `ELEVENLABS_MODEL_ID` is optional
+- **Your own files**, recorded anywhere. Put each file at `DATA_DIR/audio/s/<sentence id>.mp3` for sentences and `DATA_DIR/audio/w/<word>.mp3` for words. **Record audio** in the bot, or `eng content audio --adopt`, picks them up and records only what is still missing
+
+When the quota runs out the audio task waits and carries on later by itself, so it can run for days on a free plan.
+
 When everything looks right, tap **Open to everyone** in the same panel. **Back to development** closes it again.
 
 On a server with a terminal the same work can run from the command line:
@@ -68,6 +78,7 @@ eng content audio                 # audio for every sentence and every word
 | `CHALLENGE_CHANNEL_ID` | Channel that receives the daily challenge summary |
 | `DATA_DIR`, `WEB_DIR` | Audio directory and Mini App directory |
 | `GEMINI_API_KEY_<n>` | Gemini keys, used in turn |
+| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID` | Record audio with ElevenLabs instead of Gemini |
 
 Every ad network is optional, and any mix of them works. Limits, prices, scoring rules and the order in which ad networks are tried are not environment variables. They live in the database and change from the admin panel without a restart.
 

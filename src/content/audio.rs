@@ -1,4 +1,4 @@
-use crate::gemini::Gemini;
+use super::speaker::Speaker;
 use anyhow::Context;
 use sqlx::PgPool;
 use std::path::{Path, PathBuf};
@@ -9,12 +9,95 @@ use tokio::task::JoinSet;
 pub const VOICE: &str = "Aoede";
 const PARALLEL: usize = 4;
 
-/// Generates MP3 for every sentence and word that has none yet. Re-running it
-/// only touches what is missing.
-pub async fn run(pool: &PgPool, gemini: Arc<Gemini>, data_dir: &Path) -> anyhow::Result<()> {
+/// A pass that records nothing waits this long before the next try, and the
+/// task gives up after this many such passes in a row (about a day and a half,
+/// longer than a daily free-tier quota takes to come back).
+const IDLE_WAIT: std::time::Duration = std::time::Duration::from_secs(30 * 60);
+const MAX_IDLE_PASSES: u32 = 72;
+
+/// Keeps recording until nothing is missing. Quota errors only pause the task.
+pub async fn run_until_done(
+    pool: &PgPool,
+    speaker: Arc<Speaker>,
+    data_dir: &Path,
+) -> anyhow::Result<()> {
+    let mut idle = 0;
+    loop {
+        let (done, failed) = pass(pool, speaker.clone(), data_dir).await?;
+        if failed == 0 {
+            return Ok(());
+        }
+        idle = if done > 0 { 0 } else { idle + 1 };
+        if idle >= MAX_IDLE_PASSES {
+            anyhow::bail!("{failed} audio files still fail after {MAX_IDLE_PASSES} tries");
+        }
+        if done == 0 {
+            tracing::info!(
+                failed,
+                "no audio recorded in this pass, waiting before the next"
+            );
+            tokio::time::sleep(IDLE_WAIT).await;
+        }
+    }
+}
+
+/// Records every missing sentence and word once. Re-running it only touches
+/// what is missing.
+pub async fn run(pool: &PgPool, speaker: Arc<Speaker>, data_dir: &Path) -> anyhow::Result<()> {
+    let (_, failed) = pass(pool, speaker, data_dir).await?;
+    if failed > 0 {
+        anyhow::bail!("{failed} audio files failed; run the command again to retry them");
+    }
+    Ok(())
+}
+
+/// Marks sentences and words whose MP3 is already on disk, for example files
+/// uploaded by hand or recorded elsewhere, so they are not recorded again.
+pub async fn adopt_existing(pool: &PgPool, data_dir: &Path) -> anyhow::Result<u64> {
+    let sentences: Vec<i32> = sqlx::query_scalar("SELECT id FROM sentences WHERE NOT audio_ready")
+        .fetch_all(pool)
+        .await?;
+    let words: Vec<String> = sqlx::query_scalar("SELECT word FROM words WHERE NOT audio_ready")
+        .fetch_all(pool)
+        .await?;
+    let mut adopted = 0;
+    for id in sentences {
+        if non_empty(&data_dir.join("audio/s").join(format!("{id}.mp3"))).await {
+            adopted += sqlx::query("UPDATE sentences SET audio_ready = true WHERE id = $1")
+                .bind(id)
+                .execute(pool)
+                .await?
+                .rows_affected();
+        }
+    }
+    for word in words {
+        if non_empty(&data_dir.join("audio/w").join(format!("{word}.mp3"))).await {
+            adopted += sqlx::query("UPDATE words SET audio_ready = true WHERE word = $1")
+                .bind(&word)
+                .execute(pool)
+                .await?
+                .rows_affected();
+        }
+    }
+    if adopted > 0 {
+        tracing::info!(adopted, "audio files found on disk");
+    }
+    Ok(adopted)
+}
+
+async fn non_empty(path: &Path) -> bool {
+    tokio::fs::metadata(path).await.is_ok_and(|m| m.len() > 0)
+}
+
+async fn pass(
+    pool: &PgPool,
+    speaker: Arc<Speaker>,
+    data_dir: &Path,
+) -> anyhow::Result<(usize, usize)> {
     for sub in ["s", "w"] {
         tokio::fs::create_dir_all(data_dir.join("audio").join(sub)).await?;
     }
+    adopt_existing(pool, data_dir).await?;
     let sentences: Vec<(i32, String)> = sqlx::query_as(
         "SELECT id, text FROM sentences WHERE active AND NOT audio_ready ORDER BY id",
     )
@@ -50,8 +133,8 @@ pub async fn run(pool: &PgPool, gemini: Arc<Gemini>, data_dir: &Path) -> anyhow:
     loop {
         while tasks.len() < PARALLEL {
             let Some(job) = queue.next() else { break };
-            let (pool, gemini) = (pool.clone(), gemini.clone());
-            tasks.spawn(async move { process(&pool, &gemini, job).await });
+            let (pool, speaker) = (pool.clone(), speaker.clone());
+            tasks.spawn(async move { process(&pool, &speaker, job).await });
         }
         let Some(joined) = tasks.join_next().await else {
             break;
@@ -69,11 +152,8 @@ pub async fn run(pool: &PgPool, gemini: Arc<Gemini>, data_dir: &Path) -> anyhow:
             }
         }
     }
-    tracing::info!(done, failed, "audio finished");
-    if failed > 0 {
-        anyhow::bail!("{failed} audio files failed; re-run with --missing");
-    }
-    Ok(())
+    tracing::info!(done, failed, voice = speaker.name(), "audio pass finished");
+    Ok((done, failed))
 }
 
 struct Job {
@@ -87,9 +167,9 @@ enum Mark {
     Word(String),
 }
 
-async fn process(pool: &PgPool, gemini: &Gemini, job: Job) -> anyhow::Result<()> {
-    let mp3 = gemini
-        .speak(&job.speak, VOICE)
+async fn process(pool: &PgPool, speaker: &Speaker, job: Job) -> anyhow::Result<()> {
+    let mp3 = speaker
+        .speak(&job.speak)
         .await
         .with_context(|| format!("speaking {:?}", job.speak))?;
     // Write to a temp name first so a crash never leaves a half file that looks complete.
@@ -147,4 +227,58 @@ pub async fn repair(data_dir: &Path) -> anyhow::Result<()> {
     }
     tracing::info!(changed, untouched, "repair finished");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::db;
+
+    #[tokio::test]
+    async fn files_placed_by_hand_are_adopted_once() {
+        let Some((pool, schema)) = db::test_pool().await else {
+            return;
+        };
+        sqlx::query("INSERT INTO situations (slug, name_ar, name_en, icon, position) VALUES ('t', 'ت', 'T', 'chat', 0)")
+            .execute(&pool).await.unwrap();
+        let lesson: i32 = sqlx::query_scalar(
+            "INSERT INTO lessons (situation_id, number) SELECT id, 1 FROM situations RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        let id: i32 = sqlx::query_scalar("INSERT INTO sentences (lesson_id, position, text, normalized, translation, difficulty, tokens) VALUES ($1, 1, 'Hi there', 'hi there', 'مرحبا', 1, '[]') RETURNING id")
+            .bind(lesson).fetch_one(&pool).await.unwrap();
+        sqlx::query("INSERT INTO words (word) VALUES ('hi'), ('there')")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let dir = std::env::temp_dir().join(format!("eng-adopt-{schema}"));
+        for sub in ["s", "w"] {
+            tokio::fs::create_dir_all(dir.join("audio").join(sub))
+                .await
+                .unwrap();
+        }
+        tokio::fs::write(dir.join(format!("audio/s/{id}.mp3")), b"mp3")
+            .await
+            .unwrap();
+        tokio::fs::write(dir.join("audio/w/hi.mp3"), b"mp3")
+            .await
+            .unwrap();
+        // An empty file is a failed upload, not audio.
+        tokio::fs::write(dir.join("audio/w/there.mp3"), b"")
+            .await
+            .unwrap();
+
+        assert_eq!(super::adopt_existing(&pool, &dir).await.unwrap(), 2);
+        assert_eq!(super::adopt_existing(&pool, &dir).await.unwrap(), 0);
+        let missing: i64 = sqlx::query_scalar("SELECT count(*) FROM words WHERE NOT audio_ready")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(missing, 1);
+
+        tokio::fs::remove_dir_all(&dir).await.unwrap();
+        db::drop_test_schema(&pool, &schema).await;
+    }
 }

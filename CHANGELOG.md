@@ -21,3 +21,6 @@ All notable changes are documented here. The format follows
 - Owner tools in the bot: content counts, writing lessons, recording audio and the development-mode switch. Interrupted content tasks resume after a restart.
 - Rewarded ads from Monetag, Adexium, Telega.io and GigaPub alongside Adsgram, tried in a configurable order.
 - Guides for how the app works, Pro membership and deployment, in English and Arabic.
+- Audio can be recorded with ElevenLabs instead of Gemini (`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`).
+- MP3 files placed in `DATA_DIR/audio` by hand are picked up before recording, and `eng content audio --adopt` marks them without recording anything.
+- The audio task pauses when the quota runs out and carries on when it comes back, instead of stopping.

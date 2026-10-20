@@ -47,7 +47,15 @@ impl Kind {
 }
 
 pub async fn start(state: &AppState, kind: Kind) -> Result<i64, StartError> {
-    let gemini = state.gemini.clone().ok_or(StartError::NoGemini)?;
+    let speaker = super::speaker::Speaker::choose(&state.config, state.gemini.clone())
+        .map_err(|e| StartError::Db(format!("{e:#}")))?
+        .map(std::sync::Arc::new)
+        .ok_or(StartError::NoGemini)?;
+    // Writing lessons always needs Gemini; recording audio can use ElevenLabs instead.
+    let gemini = match kind {
+        Kind::Audio(_) => None,
+        _ => Some(state.gemini.clone().ok_or(StartError::NoGemini)?),
+    };
     let (name, situation) = kind.row();
     let mut tx = state.pool.begin().await?;
     // Serialize starts so two clicks cannot both pass the "nothing running" check.
@@ -72,12 +80,12 @@ pub async fn start(state: &AppState, kind: Kind) -> Result<i64, StartError> {
     tokio::spawn(async move {
         let (pool, data_dir) = (&state.pool, &state.config.data_dir);
         let outcome = async {
-            match kind {
-                Kind::Lessons => generate::run(pool, gemini.clone(), None).await?,
-                Kind::Generate(id) => generate::fill_situation(pool, &gemini, id).await?,
-                Kind::Audio(_) => {}
+            match (kind, &gemini) {
+                (Kind::Lessons, Some(g)) => generate::run(pool, g.clone(), None).await?,
+                (Kind::Generate(id), Some(g)) => generate::fill_situation(pool, g, id).await?,
+                _ => {}
             }
-            audio::run(pool, gemini.clone(), data_dir).await
+            audio::run_until_done(pool, speaker, data_dir).await
         }
         .await;
         let (status, detail) = match &outcome {
