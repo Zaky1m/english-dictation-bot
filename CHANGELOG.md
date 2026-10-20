@@ -24,3 +24,7 @@ All notable changes are documented here. The format follows
 - Audio can be recorded with ElevenLabs instead of Gemini (`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`).
 - MP3 files placed in `DATA_DIR/audio` by hand are picked up before recording, and `eng content audio --adopt` marks them without recording anything.
 - The audio task pauses when the quota runs out and carries on when it comes back, instead of stopping.
+
+### Fixed
+- Admin panel layout on phones: icon tabs that fit the screen, one card per record with its actions below, a settings filter and switches for on and off settings.
+- Saving a setting that holds a list of names, such as `ad_provider_order`, was rejected.

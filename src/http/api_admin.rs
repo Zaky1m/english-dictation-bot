@@ -225,7 +225,14 @@ fn same_kind(old: &Value, new: &Value) -> bool {
         (Value::Number(_), Value::Number(_))
         | (Value::Bool(_), Value::Bool(_))
         | (Value::String(_), Value::String(_)) => true,
-        (Value::Array(_), Value::Array(items)) => items.iter().all(Value::is_number),
+        // A list keeps the kind of its items: numbers stay numbers, names stay names.
+        (Value::Array(before), Value::Array(items)) => {
+            if before.iter().any(Value::is_string) {
+                items.iter().all(Value::is_string)
+            } else {
+                items.iter().all(Value::is_number)
+            }
+        }
         _ => false,
     }
 }
@@ -498,4 +505,22 @@ pub async fn jobs(State(state): State<AppState>, _admin: Admin) -> ApiResult<Vec
         .fetch_all(&state.pool)
         .await?;
     Ok(Json(rows))
+}
+
+#[cfg(test)]
+mod setting_kind_tests {
+    use super::same_kind;
+    use serde_json::json;
+
+    #[test]
+    fn lists_keep_the_kind_of_their_items() {
+        assert!(same_kind(&json!([1, 3, 7]), &json!([2, 4])));
+        assert!(!same_kind(&json!([1, 3, 7]), &json!(["a"])));
+        assert!(same_kind(
+            &json!(["adsgram", "monetag"]),
+            &json!(["monetag"])
+        ));
+        assert!(!same_kind(&json!(["adsgram"]), &json!([1])));
+        assert!(!same_kind(&json!(true), &json!(1)));
+    }
 }

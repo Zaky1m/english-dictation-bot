@@ -154,5 +154,6 @@
   "admin_disable": "Disable",
   "admin_enable": "Enable",
   "admin_started": "Task started",
-  "admin_jobs": "Tasks"
+  "admin_jobs": "Tasks",
+  "admin_settings_filter": "Filter settings"
 }

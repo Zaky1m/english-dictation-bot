@@ -1,12 +1,13 @@
 import { api, ApiError, leaveIfNotPublic } from '../api.js';
 import { loadLanguage, t } from '../i18n.js';
 import { h, toast } from '../dom.js';
-import { SITUATION_ICONS } from '../icons.js';
+import { SITUATION_ICONS, icon } from '../icons.js';
 
 const tg = window.Telegram?.WebApp;
 const root = document.getElementById('app');
 const state = { tab: 'overview', me: null, refresh: null };
 const TABS = ['overview', 'users', 'payments', 'settings', 'content'];
+const TAB_ICONS = { overview: 'home', users: 'users', payments: 'star', settings: 'sliders', content: 'book' };
 
 const date = (value) => (value ? new Date(value).toLocaleDateString() : '');
 
@@ -22,10 +23,12 @@ async function act(fn, done) {
 function frame(content) {
   root.replaceChildren(
     h('div', { class: 'top' }, h('h1', { class: 'title grow' }, t('admin_title'))),
-    h('div', { class: 'tabs' }, TABS.map((tab) => h('button', {
+    h('div', { class: 'tabs', role: 'tablist' }, TABS.map((tab) => h('button', {
       class: state.tab === tab ? 'on' : '',
-      onclick: () => { state.tab = tab; show(); },
-    }, t(`admin_tab_${tab}`)))),
+      role: 'tab',
+      'aria-selected': String(state.tab === tab),
+      onclick: () => { state.tab = tab; state.sub = null; show(); },
+    }, h('span', { html: icon(TAB_ICONS[tab]) }), h('span', { class: 'label' }, t(`admin_tab_${tab}`))))),
     h('div', { class: 'panel' }, content));
 }
 
@@ -38,81 +41,124 @@ async function overview() {
     card(o.stars_total, 'admin_stars_total'))];
 }
 
+const chip = (text, kind = '') => h('span', { class: `status ${kind}` }, text);
+const item = (title, meta, chips, actions, extra = []) => h('div', { class: 'item' },
+  h('div', { class: 'item-head' },
+    h('div', { class: 'grow' }, title, meta ? h('div', { class: 'meta' }, meta) : null),
+    chips.length ? h('div', { class: 'chips' }, ...chips) : null),
+  ...extra,
+  actions.length ? h('div', { class: 'actions' }, ...actions) : null);
+const none = () => h('div', { class: 'muted' }, t('admin_none'));
+
 async function users() {
   const results = h('div', { class: 'card full' });
   const input = h('input', { type: 'search', placeholder: t('admin_search_hint'), 'aria-label': t('admin_search_hint') });
 
   async function search() {
     const rows = await api('GET', `/api/admin/users?q=${encodeURIComponent(input.value)}`);
-    results.replaceChildren(...(rows.length ? rows.map(userRow) : [h('div', { class: 'muted' }, t('admin_none'))]));
+    results.replaceChildren(...(rows.length ? rows.map(userRow) : [none()]));
   }
 
   function userRow(u) {
-    const days = h('input', { type: 'number', min: '1', max: '3650', placeholder: t('admin_days'), style: 'width:90px' });
+    const days = h('input', { type: 'number', min: '1', max: '3650', inputmode: 'numeric', placeholder: t('admin_days'), 'aria-label': t('admin_days') });
     const grant = (plan, extra = {}) => act(async () => { await api('POST', `/api/admin/users/${u.id}/grant`, { plan, ...extra }); await search(); }, t('admin_done'));
-    return h('div', { class: 'rowline' },
-      h('div', { class: 'grow' }, h('b', {}, u.name || '-'), ' ', h('span', { class: 'muted latin small' }, `${u.username ? `@${u.username} · ` : ''}${u.id}`)),
-      h('span', { class: 'status' }, u.pro_until ? `Pro ${date(u.pro_until)}` : t('plan_free')),
-      h('button', { class: 'btn s', onclick: () => grant('month') }, t('plan_month')),
-      h('button', { class: 'btn s', onclick: () => grant('year') }, t('plan_year')),
-      days,
-      h('button', { class: 'btn2 s', onclick: () => grant('custom', { days: Number(days.value) }) }, t('admin_grant_days')),
-      u.pro_until ? h('button', { class: 'btn2 s', onclick: () => act(async () => { await api('POST', `/api/admin/users/${u.id}/revoke`); await search(); }, t('admin_done')) }, t('admin_revoke')) : null);
+    const revoke = () => act(async () => { await api('POST', `/api/admin/users/${u.id}/revoke`); await search(); }, t('admin_done'));
+    return item(
+      h('b', {}, u.name || '-'),
+      `${u.username ? `@${u.username} · ` : ''}${u.id}`,
+      [u.pro_until ? chip(`Pro · ${date(u.pro_until)}`, 'pro') : chip(t('plan_free'))],
+      [
+        h('button', { class: 'btn s', onclick: () => grant('month') }, t('plan_month')),
+        h('button', { class: 'btn s', onclick: () => grant('year') }, t('plan_year')),
+        h('div', { class: 'days' }, days, h('button', { class: 'btn2 s', onclick: () => grant('custom', { days: Number(days.value) }) }, t('admin_grant_days'))),
+        u.pro_until ? h('button', { class: 'btn2 s warn', style: 'grid-column:1/-1', onclick: revoke }, t('admin_revoke')) : null,
+      ].filter(Boolean));
   }
 
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
   await search();
-  return [h('div', { class: 'field' }, input, h('button', { class: 'btn s', onclick: search }, t('admin_search'))), results];
+  return [h('div', { class: 'search' }, input, h('button', { class: 'btn s', onclick: search }, t('admin_search'))), results];
 }
 
 async function payments() {
   const data = await api('GET', '/api/admin/payments');
   return [
-    h('div', { class: 'card full' }, h('b', {}, t('admin_payments')),
-      ...(data.payments.length ? data.payments.map((p) => h('div', { class: 'rowline' },
-        h('div', { class: 'grow' }, p.name, ' ', h('span', { class: 'muted latin small' }, `${p.user_id} · ${p.payload}`)),
-        h('span', { class: 'latin' }, `${p.amount} ${p.currency}`), h('span', { class: 'muted small' }, date(p.created_at)))) : [h('div', { class: 'muted' }, t('admin_none'))])),
-    h('div', { class: 'card full' }, h('b', {}, t('admin_grants')),
-      ...(data.grants.length ? data.grants.map((g) => h('div', { class: 'rowline' },
-        h('div', { class: 'grow' }, g.name, ' ', h('span', { class: 'muted latin small' }, g.user_id)),
-        h('span', { class: 'status' }, g.plan), h('span', { class: 'muted small latin' }, `${date(g.starts_at)} - ${date(g.ends_at)}`))) : [h('div', { class: 'muted' }, t('admin_none'))]))];
+    h('div', { class: 'card full' }, h('h2', { class: 'section-title' }, t('admin_payments')),
+      ...(data.payments.length ? data.payments.map((p) => item(
+        h('b', {}, p.name), `${p.user_id} · ${p.payload}`,
+        [chip(`${p.amount} ${p.currency}`, 'pro')], [], [h('div', { class: 'meta' }, date(p.created_at))])) : [none()])),
+    h('div', { class: 'card full' }, h('h2', { class: 'section-title' }, t('admin_grants')),
+      ...(data.grants.length ? data.grants.map((g) => item(
+        h('b', {}, g.name), `${g.user_id} · ${date(g.starts_at)} - ${date(g.ends_at)}`,
+        [chip(g.plan)], [])) : [none()]))];
 }
 
 async function settings() {
   const rows = await api('GET', '/api/admin/settings');
-  return [h('div', { class: 'card full' }, ...rows.map(([key, value]) => {
-    let read;
-    let control;
+  const save = (key, value) => act(() => api('PUT', `/api/admin/settings/${key}`, { value }), t('admin_saved'));
+  const list = h('div', { class: 'card full' });
+  const filter = h('input', { type: 'search', dir: 'ltr', placeholder: t('admin_settings_filter'), 'aria-label': t('admin_settings_filter') });
+
+  const rowsEls = rows.map(([key, value]) => {
+    const name = h('div', { class: 'key' }, key);
     if (typeof value === 'boolean') {
-      control = h('input', { type: 'checkbox', ...(value ? { checked: '' } : {}) });
-      read = () => control.checked;
-    } else if (Array.isArray(value)) {
+      // A switch saves at once; the other kinds need an explicit save.
+      let on = value;
+      const toggle = h('button', { class: `switch${on ? ' on' : ''}`, role: 'switch', 'aria-checked': String(on), 'aria-label': key });
+      toggle.append(h('i'));
+      toggle.onclick = async () => {
+        on = !on;
+        toggle.classList.toggle('on', on);
+        toggle.setAttribute('aria-checked', String(on));
+        await save(key, on);
+      };
+      return h('div', { class: 'setting toggle', 'data-key': key }, name, toggle);
+    }
+    let control;
+    let read;
+    if (Array.isArray(value)) {
+      const texts = value.some((x) => typeof x === 'string');
       control = h('input', { type: 'text', value: value.join(', '), dir: 'ltr' });
-      read = () => control.value.split(',').map((x) => Number(x.trim())).filter((x) => !Number.isNaN(x));
+      const parts = () => control.value.split(',').map((x) => x.trim()).filter(Boolean);
+      read = texts ? parts : () => parts().map(Number).filter((x) => !Number.isNaN(x));
     } else if (typeof value === 'number') {
-      control = h('input', { type: 'number', step: 'any', value: String(value) });
+      control = h('input', { type: 'number', step: 'any', inputmode: 'decimal', value: String(value), dir: 'ltr' });
       read = () => Number(control.value);
     } else {
-      control = h('input', { type: 'text', value: String(value) });
+      control = h('input', { type: 'text', value: String(value), dir: 'ltr' });
       read = () => control.value;
     }
-    return h('div', { class: 'rowline' }, h('div', { class: 'key' }, key), control,
-      h('button', { class: 'btn s', onclick: () => act(() => api('PUT', `/api/admin/settings/${key}`, { value: read() }), t('admin_saved')) }, t('admin_save')));
-  }))];
+    control.setAttribute('aria-label', key);
+    return h('div', { class: 'setting', 'data-key': key }, name,
+      h('div', { class: 'control' }, control, h('button', { class: 'btn s', onclick: () => save(key, read()) }, t('admin_save'))));
+  });
+  list.append(...rowsEls);
+  filter.addEventListener('input', () => {
+    const q = filter.value.trim().toLowerCase();
+    for (const el of rowsEls) el.hidden = Boolean(q) && !el.dataset.key.includes(q);
+  });
+  return [filter, list];
 }
 
 async function sentencesView(situation) {
   const rows = await api('GET', `/api/admin/situations/${situation.id}/sentences`);
-  const list = h('div', { class: 'card full' }, h('div', { class: 'row' },
-    h('button', { class: 'btn2 s', onclick: () => { state.sub = null; show(); } }, t('close')),
-    h('b', {}, situation.name_ar)),
-  ...rows.map((s) => h('div', { class: `rowline${s.active ? '' : ' off'}` },
-    h('span', { class: 'latin small' }, `${s.lesson}.${s.position}`),
-    h('div', { class: 'sent-text' }, s.text, h('div', { class: 'muted', style: 'direction:rtl;font-family:Cairo' }, s.translation)),
-    h('span', { class: 'status' }, s.audio_ready ? t('admin_audio_ok') : t('admin_audio_missing')),
-    h('button', { class: 'btn2 s', onclick: () => act(async () => { await api('POST', `/api/admin/sentences/${s.id}/active`, { active: !s.active }); show(); }) }, s.active ? t('admin_disable') : t('admin_enable')),
-    h('button', { class: 'btn2 s', onclick: () => act(() => api('POST', `/api/admin/sentences/${s.id}/regenerate-audio`), t('admin_started')) }, t('admin_regen_audio')))));
-  return [list];
+  const head = h('div', { class: 'item-head' },
+    h('h2', { class: 'section-title grow' }, situation.name_ar),
+    h('button', { class: 'btn2 s', style: 'width:auto', onclick: () => { state.sub = null; show(); } }, t('close')));
+  return [h('div', { class: 'card full' }, head,
+    ...rows.map((s) => {
+      const el = item(
+        h('div', { class: 'sent-text' }, s.text),
+        `${s.lesson}.${s.position}`,
+        [s.audio_ready ? chip(t('admin_audio_ok')) : chip(t('admin_audio_missing'), 'failed')],
+        [
+          h('button', { class: 'btn2 s', onclick: () => act(async () => { await api('POST', `/api/admin/sentences/${s.id}/active`, { active: !s.active }); show(); }) }, s.active ? t('admin_disable') : t('admin_enable')),
+          h('button', { class: 'btn2 s', onclick: () => act(() => api('POST', `/api/admin/sentences/${s.id}/regenerate-audio`), t('admin_started')) }, t('admin_regen_audio')),
+        ],
+        [h('div', { class: 'sent-ar' }, s.translation)]);
+      if (!s.active) el.classList.add('off');
+      return el;
+    }))];
 }
 
 async function content() {
@@ -122,9 +168,9 @@ async function content() {
 
   const form = {
     slug: h('input', { placeholder: 'slug', dir: 'ltr', 'aria-label': 'slug' }),
-    ar: h('input', { placeholder: t('admin_name_ar'), 'aria-label': t('admin_name_ar') }),
-    en: h('input', { placeholder: t('admin_name_en'), dir: 'ltr', 'aria-label': t('admin_name_en') }),
-    icon: h('select', { 'aria-label': 'icon' }, SITUATION_ICONS.map((i) => h('option', { value: i }, i))),
+    icon: h('select', { 'aria-label': 'icon', dir: 'ltr' }, SITUATION_ICONS.map((i) => h('option', { value: i }, i))),
+    ar: h('input', { class: 'wide', placeholder: t('admin_name_ar'), 'aria-label': t('admin_name_ar') }),
+    en: h('input', { class: 'wide', placeholder: t('admin_name_en'), dir: 'ltr', 'aria-label': t('admin_name_en') }),
   };
   const create = () => act(async () => {
     await api('POST', '/api/admin/situations', { slug: form.slug.value, name_ar: form.ar.value, name_en: form.en.value, icon: form.icon.value });
@@ -132,21 +178,28 @@ async function content() {
   }, t('admin_started'));
 
   return [
-    h('div', { class: 'card full stack' }, h('b', {}, t('admin_new_situation')),
-      h('div', { class: 'field' }, form.slug, form.ar, form.en, form.icon, h('button', { class: 'btn s', onclick: create }, t('admin_generate'))),
+    h('div', { class: 'card full stack' }, h('h2', { class: 'section-title' }, t('admin_new_situation')),
+      h('div', { class: 'form' }, form.slug, form.icon, form.ar, form.en,
+        h('button', { class: 'btn s wide', onclick: create }, t('admin_generate'))),
       h('div', { class: 'muted small' }, t('admin_new_note'))),
-    h('div', { class: 'card full' }, ...sits.map((s) => h('div', { class: `rowline${s.active ? '' : ' off'}` },
-      h('div', { class: 'grow' }, h('b', {}, s.name_ar), ' ', h('span', { class: 'muted latin small' }, `${s.slug} · ${s.sentences}`)),
-      h('span', { class: 'status' }, s.active ? t('admin_published') : t('admin_draft')),
-      s.audio_missing > 0 ? h('span', { class: 'status failed' }, `${t('admin_audio_missing')} ${s.audio_missing}`) : null,
-      h('button', { class: 'btn2 s', onclick: () => { state.sub = s; show(); } }, t('admin_review')),
-      h('button', { class: 'btn2 s', onclick: () => act(() => api('POST', `/api/admin/situations/${s.id}/generate`), t('admin_started')) }, t('admin_resume')),
-      h('button', { class: 'btn2 s', onclick: () => act(() => api('POST', `/api/admin/situations/${s.id}/regenerate-audio`), t('admin_started')) }, t('admin_regen_audio')),
-      h('button', { class: 'btn s', onclick: () => act(async () => { await api('POST', `/api/admin/situations/${s.id}/publish`, { active: !s.active }); show(); }) }, s.active ? t('admin_unpublish') : t('admin_publish'))))),
-    h('div', { class: 'card full' }, h('b', {}, t('admin_jobs')),
-      ...(jobs.length ? jobs.map((j) => h('div', { class: 'rowline' },
-        h('span', { class: 'latin small' }, `#${j.id} ${j.kind}`), h('span', { class: `status ${j.status}` }, j.status),
-        h('span', { class: 'muted small grow' }, j.detail))) : [h('div', { class: 'muted' }, t('admin_none'))]))];
+    h('div', { class: 'card full' }, ...sits.map((s) => {
+      const el = item(
+        h('b', {}, s.name_ar), `${s.slug} · ${s.sentences}`,
+        [chip(s.active ? t('admin_published') : t('admin_draft'), s.active ? 'pro' : ''),
+          s.audio_missing > 0 ? chip(`${t('admin_audio_missing')} ${s.audio_missing}`, 'failed') : null].filter(Boolean),
+        [
+          h('button', { class: 'btn2 s', onclick: () => { state.sub = s; show(); } }, t('admin_review')),
+          h('button', { class: 'btn2 s', onclick: () => act(() => api('POST', `/api/admin/situations/${s.id}/generate`), t('admin_started')) }, t('admin_resume')),
+          h('button', { class: 'btn2 s', onclick: () => act(() => api('POST', `/api/admin/situations/${s.id}/regenerate-audio`), t('admin_started')) }, t('admin_regen_audio')),
+          h('button', { class: 'btn s', onclick: () => act(async () => { await api('POST', `/api/admin/situations/${s.id}/publish`, { active: !s.active }); show(); }) }, s.active ? t('admin_unpublish') : t('admin_publish')),
+        ]);
+      if (!s.active) el.classList.add('off');
+      return el;
+    })),
+    h('div', { class: 'card full' }, h('h2', { class: 'section-title' }, t('admin_jobs')),
+      ...(jobs.length ? jobs.map((j) => item(
+        h('b', { class: 'latin' }, `#${j.id} ${j.kind}`), j.detail || null,
+        [chip(j.status, j.status)], [])) : [none()]))];
 }
 
 const SECTIONS = { overview, users, payments, settings, content };

@@ -113,7 +113,7 @@
   "ad_unlocked": "اتفتحت جمل إضافية",
   "admin_title": "لوحة الأدمن",
   "admin_tab_overview": "نظرة عامة",
-  "admin_tab_users": "المستخدمون",
+  "admin_tab_users": "الأعضاء",
   "admin_tab_payments": "المدفوعات",
   "admin_tab_settings": "الإعدادات",
   "admin_tab_content": "المحتوى",
@@ -154,5 +154,6 @@
   "admin_disable": "تعطيل",
   "admin_enable": "تفعيل",
   "admin_started": "بدأت المهمة",
-  "admin_jobs": "المهام"
+  "admin_jobs": "المهام",
+  "admin_settings_filter": "ابحث في الإعدادات"
 }
