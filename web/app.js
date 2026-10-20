@@ -1,5 +1,5 @@
 import { api, ApiError, leaveIfNotPublic } from './api.js';
-import { loadLanguage, t } from './i18n.js';
+import { languages, loadLanguage, t } from './i18n.js';
 import { h, toast } from './dom.js';
 import { showExercise } from './exercise.js';
 import { showMap } from './map.js';
@@ -104,6 +104,8 @@ async function start() {
   applySafeArea();
   tg?.onEvent?.('safeAreaChanged', applySafeArea);
   tg?.onEvent?.('contentSafeAreaChanged', applySafeArea);
+  // The language list loads while the profile request is in flight.
+  languages();
   try {
     ctx.me = await api('GET', '/api/me');
   } catch (e) {

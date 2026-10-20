@@ -1,9 +1,9 @@
 let strings = {};
-let list = [];
+let list = null;
 
-/** Languages from `i18n/languages.json`; the first one is the fallback. */
-export async function languages() {
-  if (!list.length) list = await (await fetch('/i18n/languages.json')).json();
+/** Languages from `i18n/languages.json`; the first one is the fallback. Fetched once. */
+export function languages() {
+  list ??= fetch('/i18n/languages.json').then((r) => r.json());
   return list;
 }
 

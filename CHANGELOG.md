@@ -28,3 +28,4 @@ All notable changes are documented here. The format follows
 ### Fixed
 - Admin panel layout on phones: icon tabs that fit the screen, one card per record with its actions below, a settings filter and switches for on and off settings.
 - Saving a setting that holds a list of names, such as `ad_provider_order`, was rejected.
+- Faster first load: every Mini App module is preloaded in parallel, the Telegram script no longer blocks the first paint, and a loader shows at once instead of a blank window.

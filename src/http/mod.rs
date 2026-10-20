@@ -143,6 +143,9 @@ mod ads_tests;
 mod owner_tests;
 
 #[cfg(test)]
+mod static_tests;
+
+#[cfg(test)]
 mod engagement_tests;
 
 #[cfg(test)]
