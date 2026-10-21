@@ -64,4 +64,4 @@ shared server. Run `cargo clean --profile dev` if a debug build ever appears.
 - Small commits, each with one reason, in imperative mood
   (`Add league promotion job`). No giant "initial" dump of the whole project.
 - Run fmt, clippy and tests before every commit.
-- End commit messages with the `Co-Authored-By` line the maintainer uses.
+- Commit messages carry no `Co-Authored-By` line and no AI attribution.
